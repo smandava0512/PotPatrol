@@ -25,3 +25,5 @@ jobs:
         run: swift test
       - name: Build hazard view
         run: swift build --product RoadWatchUI
+      - name: Compile package for iPhone Simulator
+        run: xcrun swift build --triple arm64-apple-ios17.0-simulator --sdk "$(xcrun --sdk iphonesimulator --show-sdk-path)"

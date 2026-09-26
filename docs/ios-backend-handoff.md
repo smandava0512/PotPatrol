@@ -22,7 +22,7 @@ No endpoint paths or hazard JSON keys have been implemented. Add a contract-spec
 
 ## Validation status
 
-Swift unit tests, including a synthetic MP4 round trip, are included under `ios/Tests`. They await execution on a Mac. Real authenticated upload/GPS delivery, physical camera/GPS timing, iOS compilation, and persistence remain integration work.
+Swift unit tests, including a synthetic MP4 round trip, and the hazard view build [passed on GitHub's macOS runner](https://github.com/smandava0512/potholepatel/actions/runs/36268702885). CI also includes an iPhone Simulator SDK compile check. Real authenticated upload/GPS delivery, physical camera/GPS timing, and persistence remain integration work.
 
 ## Apple references
 
