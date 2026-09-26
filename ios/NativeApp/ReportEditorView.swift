@@ -67,6 +67,11 @@ struct ReportEditorView: View {
                             .disabled(receipt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
                     if let receipt = report.receipt { Text("Receipt supplied by you: \(receipt)").textSelection(.enabled) }
+                    if let receipts = report.previousReceipts {
+                        ForEach(Array(receipts.enumerated()), id: \.offset) { item in
+                            Text("Receipt from an earlier draft: \(item.element)").font(.footnote).textSelection(.enabled)
+                        }
+                    }
                 }
             } else if error == nil { ProgressView("Preparing editable draft") }
             if let error { Text(error).foregroundStyle(.red) }

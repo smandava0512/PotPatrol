@@ -15,6 +15,7 @@ public struct EditableReport: Codable, Sendable {
     public var package: ReportPackage
     public private(set) var handoff: ReportHandoffState = .draftPrepared
     public private(set) var receipt: String?
+    public private(set) var previousReceipts: [String]?
     public var destinationNeedsReview = false
     public init(package: ReportPackage) { self.package = package }
     public var coordinate: GeoCoordinate? {
@@ -25,12 +26,18 @@ public struct EditableReport: Codable, Sendable {
         return package.destination.verifiedURL
     }
     public mutating func edit(fields: [String: JSONValue]) {
+        if package.fields != fields, handoff != .draftPrepared {
+            if let receipt { previousReceipts = (previousReceipts ?? []) + [receipt] }
+            receipt = nil
+            handoff = .draftPrepared
+        }
         if package.fields["latitude"] != fields["latitude"] || package.fields["longitude"] != fields["longitude"] {
             destinationNeedsReview = true
         }
         package.fields = fields
     }
     public mutating func recordPortalOpened() {
+        guard portalURL != nil else { return }
         if handoff != .submissionConfirmed { handoff = .portalOpened }
     }
     @discardableResult

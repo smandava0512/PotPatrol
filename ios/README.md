@@ -46,7 +46,7 @@ Each drive's Application Support folder owns `drive.mp4`, `locations.json`, `cap
 
 Capture stops below the backend's ten-minute/100-MiB limits. File-backed background URLSession uses a stable identifier. Server ID, transfer acknowledgment, GPS checkpoints, status, errors, private evidence and reports survive reopening. Transient requests retry up to three times; manual retry renews expired tickets. Background transfers can survive system termination; user force-quit cancels them until reopening/retry. Recovered interrupted recordings require review before upload.
 
-Draft edits stay local because v1 has no update endpoint. Portal opening requires a server-verified HTTPS destination and valid coordinates; changing location requires destination review. Opening never confirms submission. An actual user receipt is required, labeled **Submission confirmed by you**. Share includes text, available cached evidence and the whole saved video attachment.
+Draft edits stay local because v1 has no update endpoint. Portal opening requires a server-verified HTTPS destination and valid coordinates; changing location requires destination review. Opening never confirms submission. An actual user receipt is required, labeled **Submission confirmed by you**. Editing a previously opened/confirmed draft returns it to Draft prepared and retains older receipts as history. Share includes text, available cached evidence and the whole saved video attachment.
 
 ## Verification limits
 
