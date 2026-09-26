@@ -75,8 +75,16 @@ jobs:
         run: |
           DEVICE_ID=$(python3 scripts/select_simulator.py)
           xcodebuild -project PotPatrol.xcodeproj -scheme PotPatrol -destination "platform=iOS Simulator,id=$DEVICE_ID" -parallel-testing-enabled NO -resultBundlePath /tmp/PotPatrolUITests.xcresult test CODE_SIGNING_ALLOWED=NO
+      - name: Export simulator screenshots and diagnostics
+        if: always()
+        run: |
+          if [ -d /tmp/PotPatrolUITests.xcresult ]; then
+            xcrun xcresulttool export attachments --path /tmp/PotPatrolUITests.xcresult --output-path /tmp/PotPatrolUIAttachments
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: PotPatrol-UI-results
-          path: /tmp/PotPatrolUITests.xcresult
+          path: |
+            /tmp/PotPatrolUITests.xcresult
+            /tmp/PotPatrolUIAttachments

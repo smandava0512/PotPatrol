@@ -28,15 +28,16 @@ struct ReportEditorView: View {
     @State private var error: String?
     @State private var saved = false
     @State private var share: SharePayload?
+    @FocusState private var focusedField: String?
     var body: some View {
         Form {
             if let report {
                 if state.drive(driveID)?.isDemo == true { DemoBanner() }
                 Section("Draft") {
-                    TextField("Category", text: $category)
-                    TextEditor(text: $description).frame(minHeight: 120).accessibilityIdentifier("reportDescription")
-                    TextField("Latitude (optional)", text: $latitude).keyboardType(.numbersAndPunctuation)
-                    TextField("Longitude (optional)", text: $longitude).keyboardType(.numbersAndPunctuation)
+                    TextField("Category", text: $category).focused($focusedField, equals: "category")
+                    TextEditor(text: $description).frame(minHeight: 120).accessibilityIdentifier("reportDescription").focused($focusedField, equals: "description")
+                    TextField("Latitude (optional)", text: $latitude).keyboardType(.numbersAndPunctuation).focused($focusedField, equals: "latitude")
+                    TextField("Longitude (optional)", text: $longitude).keyboardType(.numbersAndPunctuation).focused($focusedField, equals: "longitude")
                     Text("Coordinates describe an approximate phone location. Confirm the hazard location before reporting.")
                         .font(.footnote).foregroundStyle(.secondary)
                     Button("Save draft") { Task { await saveDraft() } }.accessibilityIdentifier("saveDraft")
@@ -61,7 +62,7 @@ struct ReportEditorView: View {
                     Text(report.handoff.label).accessibilityIdentifier("handoffState")
                     if report.handoff == .portalOpened {
                         Text("After submitting on the portal, enter the actual confirmation or receipt.").font(.footnote)
-                        TextField("Confirmation or receipt", text: $receipt)
+                        TextField("Confirmation or receipt", text: $receipt).focused($focusedField, equals: "receipt")
                         Button("Save submission receipt") { Task { await confirmReceipt() } }
                             .disabled(receipt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
@@ -72,6 +73,12 @@ struct ReportEditorView: View {
         }
         .navigationTitle("Review report")
         .scrollDismissesKeyboard(.interactively)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { focusedField = nil }.accessibilityIdentifier("dismissReportKeyboard")
+            }
+        }
         .sheet(item: $share) { payload in ActivityShare(items: payload.items) }
         .task {
             do {

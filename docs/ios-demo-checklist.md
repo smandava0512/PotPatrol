@@ -4,7 +4,7 @@ Physical phone, deployed server and real analyzer acceptance remain outstanding.
 
 ## Two real clips
 
-Record one 10–30 second real pothole clip and one clean stretch as a passenger or while parked. Set up before motion. Keep originals; share privately with Developers 2 and 3. Clean media tests the real analyzer's zero-hazard result.
+Record one 30–60 second real pothole clip and one clean stretch as a passenger or while parked, matching Developer 3's requested 30–90 second range. Set up before motion. Keep originals; share privately with Developers 2 and 3. Clean media tests the real analyzer's zero-hazard result.
 
 In Pot Patrol, Start, wait for recording/GPS, then Stop while parked. MP4, GPS, duration and UTC persist. Outside-app clips have no correlated GPS or reliably known first-frame UTC; leave those unknown.
 

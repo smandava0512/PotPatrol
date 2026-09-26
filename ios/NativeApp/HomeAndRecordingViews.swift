@@ -6,6 +6,7 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject private var state: AppState
     @State private var showSettings = false
+    @State private var showScenarios = false
     var body: some View {
         NavigationStack(path: $state.path) {
             List {
@@ -30,12 +31,13 @@ struct HomeView: View {
                     Button { Task { await state.startRecording(demo: .pothole) } } label: {
                         Label("Sample drive", systemImage: "play.rectangle")
                     }.accessibilityIdentifier("demoDrive")
-                    Menu("More sample scenarios") {
+                    Button("More sample scenarios") { showScenarios.toggle() }.accessibilityIdentifier("demoScenarios")
+                    if showScenarios {
                         Button("Without GPS") { Task { await state.startRecording(demo: .noGPS) } }.accessibilityIdentifier("demoNoGPS")
                         Button("No hazards") { Task { await state.startRecording(demo: .noHazards) } }.accessibilityIdentifier("demoNoHazards")
                         Button("Processing failure") { Task { await state.startRecording(demo: .processingFailure) } }.accessibilityIdentifier("demoFailure")
                         Button("Unsupported destination") { Task { await state.startRecording(demo: .unsupportedDestination) } }.accessibilityIdentifier("demoUnsupported")
-                    }.accessibilityIdentifier("demoScenarios")
+                    }
                     Text("Demo fixtures are a backup walkthrough, not real analysis.").font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("Saved drives") {
@@ -124,7 +126,6 @@ struct RecordingView: View {
                     .disabled(state.savingRecording).accessibilityIdentifier("stopRecording")
             }.padding(24)
         }
-        .accessibilityIdentifier("recordingScreen")
         .task(id: isDemo) {
             guard isDemo else { return }
             player.play()

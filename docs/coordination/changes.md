@@ -16,6 +16,8 @@ Published v1 adopted. Additive UTC field/report-shape proposals await owner publ
 
 No endpoint/unit changes proposed. Copied package fixtures are labeled synthetic.
 
+Developer 3's published `dev3-vision` proposal was inspected. Its report uses structured `{value,source}` fields and `destination:{destination_status,destination_url,candidates,...}`; the live v1 backend returns plain `fields` and `destination:{status,url}`. Developer 2 must map these shapes before the app can consume candidates or field provenance. The proposed report callable also takes evidence, coordinates, accuracy and observation time, while v1 expects a single hazard argument. No alternate report request is sent by the app. Please also preserve an explicit fixture/model indicator when the analyzer is connected so server fixtures cannot be mistaken for live detection.
+
 ### Copy to Developer 2
 
 > Developer 1 / Pot Patrol: yes, iOS supports raw MP4 PUT with X-Device-Token, {samples:[...]}, integer GPS offsets from the first successfully written frame, idempotent GPS retries, and private authenticated evidence. We omit heading_deg; /complete remains {}. First-frame UTC is captured immediately and survives reopening. Please publish the additive field's exact name/type/endpoint and observation-time fixture before we send it. Missing GPS keeps the hazard visible. Unsupported destination keeps the draft editable/shareable and disables portal opening. Current adapter reads nested destination:{status,url}. Please provide HTTPS base URL and device token privately. Transport tests passed against your pinned backend with the synthetic fixture worker; final phone acceptance needs the real analyzer.

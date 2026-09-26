@@ -123,6 +123,11 @@ struct HazardReviewView: View {
                         Text("Confidence: \((confidence * 100).formatted(.number.precision(.fractionLength(0))))%")
                     }
                     if let severity = hazard.severity { Text("Severity: \(severity)") }
+                    if let review = hazard.reviewState {
+                        Label(review == "confirmed" ? "Detector confirmed" : review == "needs_review" ? "Needs review" : "Review status: \(review)",
+                              systemImage: review == "confirmed" ? "checkmark.circle" : "eye")
+                            .font(.footnote).foregroundStyle(review == "confirmed" ? .green : .orange)
+                    }
                     if let basis = hazard.severityBasis { Text(basis).font(.footnote).foregroundStyle(.secondary) }
                     if let started = drive?.videoStartedAt {
                         Text("Recorded observation: \(started.addingTimeInterval(Double(hazard.videoOffsetMilliseconds) / 1_000).formatted(date: .abbreviated, time: .standard))")

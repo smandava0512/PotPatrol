@@ -10,11 +10,19 @@ final class PotPatrolUITests: XCTestCase {
     }
     private func finishDemo(_ scenario: String? = nil) {
         if let scenario {
+            reveal(app.buttons["demoScenarios"])
             app.buttons["demoScenarios"].tap()
+            reveal(app.buttons[scenario])
             app.buttons[scenario].tap()
-        } else { app.buttons["demoDrive"].tap() }
-        XCTAssertTrue(app.buttons["stopRecording"].waitForExistence(timeout: 10))
+        } else { reveal(app.buttons["demoDrive"]); app.buttons["demoDrive"].tap() }
+        guard app.buttons["stopRecording"].waitForExistence(timeout: 15) else {
+            XCTFail("Recording did not show its Stop control.\n" + app.debugDescription)
+            return
+        }
         app.buttons["stopRecording"].tap()
+    }
+    private func reveal(_ element: XCUIElement) {
+        for _ in 0..<5 where !element.isHittable { app.swipeUp() }
     }
     private var hazard: XCUIElement {
         app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'hazard_'")).firstMatch
@@ -34,7 +42,8 @@ final class PotPatrolUITests: XCTestCase {
         let description = app.textViews["reportDescription"]
         description.tap()
         description.typeText(" Passenger reviewed this evidence.")
-        app.swipeUp()
+        if app.buttons["dismissReportKeyboard"].exists { app.buttons["dismissReportKeyboard"].tap() }
+        reveal(app.buttons["saveDraft"])
         app.buttons["saveDraft"].tap()
         XCTAssertTrue(app.staticTexts["Edits saved on this iPhone"].waitForExistence(timeout: 5))
         app.terminate()
