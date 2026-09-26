@@ -23,3 +23,16 @@ The initial v1 contract is in `docs/contracts/api.md`. Any subsequent change to 
 - **Worker:** Dev 3 confirms `analyze(video_path, output_dir)` returning `output_dir/analysis.json`, JPEGs relative to output_dir, one event per physical pothole, `events:[]` for clean clips, and errors for failed analysis. Still need confirmation of `schema_version:1`, importable Python module path, fixture invocation, and pushed code before integration. Extra event fields are ignored; category/confidence/offset/evidence remain unchanged.
 
 **Historical notification status:** The proposals above were pending at the time. For this implementation, Shravya has confirmed the recorder/UI behavior; forward the finalized backend branch link and request Param's adapter review before claiming cross-team adoption.
+
+## Dev 3 interface log (worker / report)
+
+Any change to categories, manifest fields/types, offset origin, evidence files, model output semantics, report fields,
+destination statuses, latency assumptions or deployment dependencies gets an entry here **before** it ships.
+Keep the old shape working until both other developers acknowledge.
+
+| # | Date | Owner | Interface | Old → New | Reason | Affected | Migration | Status / acks |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 2026-09-26 | Dev 3 | `analysis.json` v1 (initial) | — → schema v1 per `docs/contracts/analysis.md` | First publication. Adds `event_id`, `status` (`confirmed`/`needs_review`), `hits`, `bbox`, `evidence_raw_path`, `mode` beyond the brief's proposal. | Dev 2 (ingest/storage), Dev 1 (render `status`, evidence) | New interface; nothing to migrate. Consumers ignore unknown fields. | **Pending ack**: Dev 2 ☐ Dev 1 ☐ |
+| 2 | 2026-09-26 | Dev 3 | Report fields v1 (initial) | — → `examples/report.example.json` | First publication. `destination_status ∈ {verified, needs_review, unsupported}`; `submission_status` always `not_submitted` from worker. | Dev 2 (store/serve), Dev 1 (edit form, destination picker) | New interface. | **Pending ack**: Dev 2 ☐ Dev 1 ☐ |
+| 3 | 2026-09-26 | Dev 3 | Package / CLI / env var names (project renamed to PotPatrol) | `roadwatch_vision`, `python -m roadwatch_vision`, `ROADWATCH_*` → `potpatrol_vision`, `python -m potpatrol_vision`, `POTPATROL_*` | Team picked final name PotPatrol. | Dev 2 (imports, subprocess command, env vars) | Old names still work: `roadwatch_vision` is a deprecated alias package and `ROADWATCH_*` env vars are read as fallback. Manifest schema unchanged. Alias removed after ack. | **Pending ack**: Dev 2 ☐ Dev 1 ☐ |
+| 4 | 2026-09-26 | Dev 3 (requested by Dev 2) | `draft_report` signature | `draft_report(event, gps_dict, observed_at, *, ...)` → `draft_report(hazard, evidence_path, lat, lon, accuracy_m, observed_at, *, address=None, owner_hint=None, user_reviewed=False)`; location/time/evidence nullable | Match Dev 2's adapter. Missing location → `needs_review` with no candidates; outside coverage → `unsupported`. | Dev 2 (caller), Dev 1 (null location/time display) | Old signature was never called (not yet pushed), so no shim needed. Report output fields unchanged, except that values can now be `null`. | Dev 2 ☑ (proposed it) Dev 1 ☐ |
