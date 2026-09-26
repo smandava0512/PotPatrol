@@ -1,6 +1,6 @@
 import AVFoundation
 import CoreLocation
-import RoadWatchCore
+import PotPatrolCore
 
 public enum CaptureTimeBridge {
     /// Use the host clock for both video and GPS. Midpoint sampling reduces clock-read skew.

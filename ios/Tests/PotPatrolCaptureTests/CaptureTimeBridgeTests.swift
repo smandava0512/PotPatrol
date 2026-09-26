@@ -1,8 +1,8 @@
 import AVFoundation
 import CoreLocation
 import XCTest
-import RoadWatchCore
-@testable import RoadWatchCapture
+import PotPatrolCore
+@testable import PotPatrolCapture
 
 final class CaptureTimeBridgeTests: XCTestCase {
     func testCoreLocationUsesMeasurementTimestampDespiteDelayedDelivery() throws {

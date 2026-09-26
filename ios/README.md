@@ -1,6 +1,6 @@
-# RoadWatchKit
+# Pot Patrol iOS Package
 
-Requires Swift 5.9+, iOS 17+ or macOS 14+. Open `Package.swift` in Xcode on a Mac, or add this local package to the iOS app target. This is a library and a hazard detail view; camera permissions, the capture session, app navigation, persistent drive management, and backend endpoints still need to be integrated.
+`PotPatrolKit` requires Swift 5.9+, iOS 17+ or macOS 14+. Open `Package.swift` in Xcode on a Mac, or add this local package to the iOS app target. This is a library and a hazard detail view; camera permissions, the capture session, app navigation, persistent drive management, and backend endpoints still need to be integrated.
 
 ## Authenticated MP4 PUT
 
@@ -54,9 +54,9 @@ From `ios`:
 
 ```sh
 swift test
-swift build --product RoadWatchUI
+swift build --product PotPatrolUI
 ```
 
 Tests cover PUT/authentication/raw bytes, preserved files and retry, HTTP failures, delayed GPS delivery, first-frame zero, invalid/empty GPS, millisecond/UTC/null encoding, and a hazard without coordinates. The AVFoundation test creates a real H.264 MP4 from a synthetic frame, decodes it, and verifies its first presentation timestamp is zero.
 
-For an iOS SDK compile in Xcode, select the RoadWatchKit package scheme and an iPhone Simulator destination, then Build. The package tests and hazard view build passed on the [GitHub macOS runner](https://github.com/smandava0512/potholepatel/actions/runs/36268702885). CI also includes an iPhone Simulator SDK compile check. Physical phone and real backend integration still need verification. The local Windows workspace has no Swift or Xcode toolchain.
+For an iOS SDK compile in Xcode, select the PotPatrolKit package scheme and an iPhone Simulator destination, then Build. The package tests and hazard view build passed on the [GitHub macOS runner](https://github.com/smandava0512/potholepatel/actions/runs/36268702885). CI also includes an iPhone Simulator SDK compile check. Physical phone and real backend integration still need verification. The local Windows workspace has no Swift or Xcode toolchain.

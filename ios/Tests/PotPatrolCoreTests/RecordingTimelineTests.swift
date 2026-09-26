@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import RoadWatchCore
+@testable import PotPatrolCore
 
 final class RecordingTimelineTests: XCTestCase {
     private let epoch = Date(timeIntervalSince1970: 1_700_000_000)

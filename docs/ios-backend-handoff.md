@@ -1,6 +1,6 @@
-# iOS capability handoff
+# Pot Patrol — iOS capability handoff
 
-The iOS package now implements the three requested integration primitives. This document records app behavior and questions for the backend owner; it does not replace the backend's canonical API contract.
+Developer 1's Pot Patrol iOS package implements the three requested integration primitives on `codex/developer-1-pot-patrol-ios`. This document records app behavior and questions for the backend owner; it does not replace the backend's canonical API contract.
 
 | Capability | App behavior |
 | --- | --- |

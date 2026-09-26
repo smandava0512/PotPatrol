@@ -1,5 +1,5 @@
 import MapKit
-import RoadWatchCore
+import PotPatrolCore
 import SwiftUI
 
 public struct HazardDetailView: View {

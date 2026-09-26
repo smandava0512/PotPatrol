@@ -1,8 +1,8 @@
-name: iOS package
+name: Pot Patrol iOS (Developer 1)
 
 on:
   push:
-    branches: [codex/roadwatch-ios]
+    branches: [codex/developer-1-pot-patrol-ios]
     paths: ["ios/**", ".github/workflows/ios-package.yml"]
   pull_request:
     paths: ["ios/**", ".github/workflows/ios-package.yml"]
@@ -24,6 +24,6 @@ jobs:
       - name: Swift tests including MP4 round trip
         run: swift test
       - name: Build hazard view
-        run: swift build --product RoadWatchUI
+        run: swift build --product PotPatrolUI
       - name: Compile package for iPhone Simulator
         run: xcrun swift build --triple arm64-apple-ios17.0-simulator --sdk "$(xcrun --sdk iphonesimulator --show-sdk-path)"

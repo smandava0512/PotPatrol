@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import RoadWatchCore
+@testable import PotPatrolCore
 
 final class HazardTests: XCTestCase {
     func testNoGPSPreservesHazardEvidenceAndTimeButRequiresReview() {

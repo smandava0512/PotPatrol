@@ -2,18 +2,18 @@
 import PackageDescription
 
 let package = Package(
-    name: "RoadWatchKit",
+    name: "PotPatrolKit",
     platforms: [.iOS(.v17), .macOS(.v14)],
     products: [
-        .library(name: "RoadWatchCore", targets: ["RoadWatchCore"]),
-        .library(name: "RoadWatchCapture", targets: ["RoadWatchCapture"]),
-        .library(name: "RoadWatchUI", targets: ["RoadWatchUI"])
+        .library(name: "PotPatrolCore", targets: ["PotPatrolCore"]),
+        .library(name: "PotPatrolCapture", targets: ["PotPatrolCapture"]),
+        .library(name: "PotPatrolUI", targets: ["PotPatrolUI"])
     ],
     targets: [
-        .target(name: "RoadWatchCore"),
-        .target(name: "RoadWatchCapture", dependencies: ["RoadWatchCore"]),
-        .target(name: "RoadWatchUI", dependencies: ["RoadWatchCore"]),
-        .testTarget(name: "RoadWatchCoreTests", dependencies: ["RoadWatchCore"]),
-        .testTarget(name: "RoadWatchCaptureTests", dependencies: ["RoadWatchCapture", "RoadWatchCore"])
+        .target(name: "PotPatrolCore"),
+        .target(name: "PotPatrolCapture", dependencies: ["PotPatrolCore"]),
+        .target(name: "PotPatrolUI", dependencies: ["PotPatrolCore"]),
+        .testTarget(name: "PotPatrolCoreTests", dependencies: ["PotPatrolCore"]),
+        .testTarget(name: "PotPatrolCaptureTests", dependencies: ["PotPatrolCapture", "PotPatrolCore"])
     ]
 )
