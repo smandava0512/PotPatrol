@@ -10,7 +10,7 @@ let package = Package(
         .library(name: "PotPatrolUI", targets: ["PotPatrolUI"])
     ],
     targets: [
-        .target(name: "PotPatrolCore"),
+        .target(name: "PotPatrolCore", resources: [.copy("Fixtures")]),
         .target(name: "PotPatrolCapture", dependencies: ["PotPatrolCore"]),
         .target(name: "PotPatrolUI", dependencies: ["PotPatrolCore"]),
         .testTarget(name: "PotPatrolCoreTests", dependencies: ["PotPatrolCore"]),

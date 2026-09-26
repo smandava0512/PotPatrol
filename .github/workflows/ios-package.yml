@@ -13,7 +13,7 @@ permissions:
 jobs:
   swift-package:
     runs-on: macos-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: ios
@@ -27,3 +27,56 @@ jobs:
         run: swift build --product PotPatrolUI
       - name: Compile package for iPhone Simulator
         run: xcrun swift build --triple arm64-apple-ios17.0-simulator --sdk "$(xcrun --sdk iphonesimulator --show-sdk-path)"
+
+  backend-contract:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: smandava0512/potholepatel
+          ref: 2392ff54b977ff78a0dfe312f15e1236b741ef89
+          path: backend-fixture
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Install the published backend in an isolated environment
+        run: |
+          python -m venv /tmp/potpatrol-contract-venv
+          /tmp/potpatrol-contract-venv/bin/python -m pip install -e ../backend-fixture
+      - name: Authenticated MP4, idempotent GPS, worker, private evidence, report, no GPS
+        run: /tmp/potpatrol-contract-venv/bin/python scripts/run_backend_integration.py ../backend-fixture
+
+  native-app:
+    runs-on: macos-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Validate checked-in Xcode project
+        run: |
+          python3 scripts/generate_xcode_project.py
+          git diff --exit-code -- PotPatrol.xcodeproj NativeApp/Info-Debug.plist NativeApp/Info-Release.plist
+          xcodebuild -list -project PotPatrol.xcodeproj
+      - name: Compile release app for iPhone Simulator
+        run: xcodebuild -project PotPatrol.xcodeproj -scheme PotPatrol -configuration Release -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
+      - name: Run native app UI acceptance checks
+        run: |
+          DEVICE_ID=$(xcrun simctl list devices available --json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for group in d["devices"].values() for x in group if x["name"].startswith("iPhone")))')
+          xcodebuild -project PotPatrol.xcodeproj -scheme PotPatrol -destination "platform=iOS Simulator,id=$DEVICE_ID" -parallel-testing-enabled NO -resultBundlePath /tmp/PotPatrolUITests.xcresult test CODE_SIGNING_ALLOWED=NO
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: PotPatrol-UI-results
+          path: /tmp/PotPatrolUITests.xcresult

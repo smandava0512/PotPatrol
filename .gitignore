@@ -3,5 +3,8 @@
 .swiftpm/
 DerivedData/
 xcuserdata/
+__pycache__/
+*.xcresult/
 *.mp4
 *.mov
+!ios/Sources/PotPatrolCore/Fixtures/sample-drive.mp4

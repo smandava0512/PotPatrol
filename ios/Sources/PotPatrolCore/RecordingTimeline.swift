@@ -60,7 +60,7 @@ public struct GPSReading: Sendable {
 }
 
 /// Sample fields from the plan's initial proposal. No endpoint or batch envelope is assumed.
-public struct GPSSample: Encodable, Equatable, Sendable {
+public struct GPSSample: Codable, Equatable, Sendable {
     public let offsetMilliseconds: Int64
     public let recordedAt: Date
     public let latitude: Double
@@ -76,6 +76,32 @@ public struct GPSSample: Encodable, Equatable, Sendable {
         case horizontalAccuracyMeters = "horizontal_accuracy_m"
         case speedMetersPerSecond = "speed_mps"
         case headingDegrees = "heading_deg"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        offsetMilliseconds = try container.decode(Int64.self, forKey: .offsetMilliseconds)
+        let text = try container.decode(String.self, forKey: .recordedAt)
+        guard let date = PotPatrolJSON.date(text) else {
+            throw DecodingError.dataCorruptedError(forKey: .recordedAt, in: container, debugDescription: "Invalid GPS timestamp")
+        }
+        recordedAt = date
+        latitude = try container.decode(Double.self, forKey: .latitude)
+        longitude = try container.decode(Double.self, forKey: .longitude)
+        horizontalAccuracyMeters = try container.decode(Double.self, forKey: .horizontalAccuracyMeters)
+        speedMetersPerSecond = try container.decodeIfPresent(Double.self, forKey: .speedMetersPerSecond)
+        headingDegrees = try container.decodeIfPresent(Double.self, forKey: .headingDegrees)
+    }
+
+    public init(offsetMilliseconds: Int64, recordedAt: Date, latitude: Double, longitude: Double,
+                horizontalAccuracyMeters: Double, speedMetersPerSecond: Double?, headingDegrees: Double?) {
+        self.offsetMilliseconds = offsetMilliseconds
+        self.recordedAt = recordedAt
+        self.latitude = latitude
+        self.longitude = longitude
+        self.horizontalAccuracyMeters = horizontalAccuracyMeters
+        self.speedMetersPerSecond = speedMetersPerSecond
+        self.headingDegrees = headingDegrees
     }
 
     public func encode(to encoder: Encoder) throws {
