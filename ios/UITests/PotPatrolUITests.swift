@@ -81,6 +81,9 @@ final class PotPatrolUITests: XCTestCase {
         XCTAssertTrue(portal.exists)
         XCTAssertFalse(portal.isEnabled)
         XCTAssertTrue(app.staticTexts["destinationStatus"].label.contains("not supported"))
-        XCTAssertTrue(app.buttons["Share text, evidence, and saved video"].exists)
+        let share = app.buttons["shareReport"]
+        reveal(share)
+        XCTAssertTrue(share.waitForExistence(timeout: 5))
+        XCTAssertTrue(share.isEnabled)
     }
 }

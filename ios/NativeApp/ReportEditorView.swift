@@ -57,6 +57,7 @@ struct ReportEditorView: View {
                         catch { self.error = error.localizedDescription }
                     }
                     Button("Share text, evidence, and saved video") { Task { await prepareShare() } }
+                        .accessibilityIdentifier("shareReport")
                 }
                 Section("Submission") {
                     Text(report.handoff.label).accessibilityIdentifier("handoffState")

@@ -159,7 +159,7 @@ struct SettingsView: View {
                 #if DEBUG
                 Section("Local development") {
                     Toggle("Allow HTTP for the local server", isOn: $developmentHTTP)
-                    Text("On a real phone, use the Mac's LAN address, not 127.0.0.1. HTTP is available only in development builds.")
+                    Text("On a real phone, use the server computer's LAN address, not 127.0.0.1. HTTP is available only in development builds.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 #endif
