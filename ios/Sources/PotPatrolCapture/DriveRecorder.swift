@@ -70,6 +70,7 @@ public final class DriveRecorder: NSObject, AVCaptureVideoDataOutputSampleBuffer
         default: allowed = false
         }
         guard allowed else { throw RecorderError.cameraDenied }
+        guard CLLocationManager.locationServicesEnabled() else { return false }
         if locationManager.authorizationStatus == .notDetermined {
             return await withCheckedContinuation { continuation in
                 authorizationContinuations.append(continuation)

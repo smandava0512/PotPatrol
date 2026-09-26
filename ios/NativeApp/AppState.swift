@@ -35,7 +35,10 @@ final class AppState: ObservableObject {
         recorder.onElapsed = { [weak self] elapsed in Task { @MainActor in self?.elapsed = elapsed } }
         recorder.onGPSAvailability = { [weak self] value in Task { @MainActor in self?.hasGPS = value } }
         recorder.onStopRequested = { [weak self] reason in
-            Task { @MainActor in await self?.stopRecording(reason: reason) }
+            Task { @MainActor in
+                guard let self, let id = self.activeRecordingID, self.drive(id)?.isDemo == false else { return }
+                await self.stopRecording(reason: reason)
+            }
         }
         Task { await reload(); await recoverInterruptedCaptures(); await resumeSavedDrives() }
     }
@@ -91,8 +94,8 @@ final class AppState: ObservableObject {
             elapsed = 0
             hasGPS = false
             savingRecording = false
-            activeRecordingID = drive.id
             await reload()
+            activeRecordingID = drive.id
             if demo == nil {
                 try await recorder.start(videoURL: repository.videoURL(drive.id), sidecarURL: repository.locationsURL(drive.id))
             }
@@ -308,6 +311,8 @@ final class AppState: ObservableObject {
         return (data, try await repository.saveEvidence(data, id: id, hazardID: hazard.id))
     }
     func enteredBackground() {
-        if activeRecordingID != nil { Task { await stopRecording(reason: "Recording stopped when Pot Patrol left the foreground.") } }
+        if let id = activeRecordingID, drive(id)?.isDemo == false {
+            Task { await stopRecording(reason: "Recording stopped when Pot Patrol left the foreground.") }
+        }
     }
 }
