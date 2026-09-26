@@ -4,15 +4,15 @@ from datetime import datetime, timedelta, timezone
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from roadwatch.api import create_app
-from roadwatch.db import Drive, Job
-from roadwatch.worker import process_once, validate_manifest
+from potpatrol.api import create_app
+from potpatrol.db import Drive, Job
+from potpatrol.worker import process_once, validate_manifest
 
 VIDEO = (Path(__file__).parent.parent / "fixtures" / "sample-drive.mp4").read_bytes()
 TOKEN = {"X-Device-Token": "secret"}
 
 
-def setup_drive(tmp_path, analyzer="roadwatch.fixture_worker:analyze", with_locations=False):
+def setup_drive(tmp_path, analyzer="potpatrol.fixture_worker:analyze", with_locations=False):
     app = create_app(db_url=f"sqlite:///{(tmp_path / 'db.sqlite').as_posix()}", storage_dir=tmp_path / "objects", token="secret", analyzer=analyzer)
     client = TestClient(app)
     drive = client.post("/v1/drives", json={}, headers=TOKEN).json()["drive_id"]
@@ -23,7 +23,7 @@ def setup_drive(tmp_path, analyzer="roadwatch.fixture_worker:analyze", with_loca
 
 
 def test_no_hazard_worker_and_missing_gps(tmp_path):
-    app, client, drive, url = setup_drive(tmp_path, analyzer="roadwatch.empty_worker:analyze")
+    app, client, drive, url = setup_drive(tmp_path, analyzer="potpatrol.empty_worker:analyze")
     assert client.put(url, headers={**TOKEN, "Content-Type": "video/mp4"}, content=VIDEO).status_code == 204
     assert client.post(f"/v1/drives/{drive}/complete", headers=TOKEN, json={}).status_code == 200
     assert process_once(app.state.config)
@@ -57,7 +57,7 @@ def test_worker_failure_retry_and_reclaims_expired_lease(tmp_path):
     client.post(f"/v1/drives/{drive}/complete", headers=TOKEN, json={})
     assert process_once(app.state.config)
     assert client.get(f"/v1/drives/{drive}", headers=TOKEN).json()["status"] == "failed"
-    app.state.config.analyzer = "roadwatch.fixture_worker:analyze"
+    app.state.config.analyzer = "potpatrol.fixture_worker:analyze"
     assert client.post(f"/v1/drives/{drive}/retry", headers=TOKEN, json={}).json()["status"] == "queued"
     with app.state.config.Session.begin() as db:
         job = db.scalar(select(Job).where(Job.drive_id == drive))

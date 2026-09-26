@@ -82,7 +82,7 @@ def process_once(config):
                 raise ValueError("Missing stored video")
             video_key = drive.video_key
             samples = list(db.scalars(select(Location).where(Location.drive_id == drive_id).order_by(Location.offset_ms)))
-        with tempfile.TemporaryDirectory(prefix="roadwatch-", dir=config.storage_dir) as workspace:
+        with tempfile.TemporaryDirectory(prefix="potpatrol-", dir=config.storage_dir) as workspace:
             video = Path(workspace) / "drive.mp4"
             config.store.download_file(video_key, video)
             result = load_callable(config.analyzer)(str(video), str(workspace))

@@ -1,5 +1,11 @@
 # Contract changes
 
+## Applied: PotPatrol naming (brand-only; no endpoint or JSON shape change)
+
+- **Old → new:** `RoadWatch` display name → `PotPatrol`; Python package/worker path `roadwatch.*` → `potpatrol.*`; `ROADWATCH_*` environment settings → `POTPATROL_*`. Existing `ROADWATCH_*` settings remain accepted as fallback, with the new names taking precedence. `X-Device-Token`, `/v1/...` paths, offset semantics, worker manifest, and response fields are unchanged.
+- **Reason:** project-wide rebrand requested by owner. **Affected:** both teammates' run instructions, Dev 3 worker integration, and deployment configuration. **Migration:** use `python -m potpatrol.worker` and `POTPATROL_ANALYZER=module:function`; existing environment variables keep working. API contract, generated OpenAPI title and fixtures must be updated together. No old import path is promised; coordinate any direct `roadwatch.*` imports before upgrading.
+- **Notification:** pending human forwarding to Dev 1 and Dev 3; ask them to acknowledge the branding change before switching deployments. GitHub repository rename is separately pending with its admin.
+
 The initial v1 contract is in `docs/contracts/api.md`. Any subsequent change to an endpoint, response shape, timestamp origin/unit, enum, auth, upload method, worker manifest, evidence policy, report fields or demo URL must record old → new, reason, impacted teams, compatibility/migration, and notification/acknowledgments here before breaking consumers. Until a direct channel is agreed, changes remain pending and a ready-to-forward notice goes to the human developer for both Developer 1 and Developer 3.
 
 ## Proposed; NOT yet in the v1 API (awaiting both teammates)

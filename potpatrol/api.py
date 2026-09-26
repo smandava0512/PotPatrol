@@ -45,17 +45,23 @@ class Batch(BaseModel):
     samples: list[Point] = Field(max_length=2000)
 
 
+def config_env(key, default=""):
+    """PotPatrol settings take priority; old RoadWatch names remain compatible."""
+    return os.environ.get(f"POTPATROL_{key}") or os.environ.get(f"ROADWATCH_{key}") or default
+
+
 class Config:
     def __init__(self, db_url=None, storage_dir=None, token=None, analyzer=None, store=None):
-        self.db_url = db_url or os.environ.get("ROADWATCH_DATABASE_URL", "sqlite:///./roadwatch.db")
-        self.storage_dir = Path(storage_dir or os.environ.get("ROADWATCH_STORAGE_DIR", "./.roadwatch-storage")).resolve()
-        self.token = token if token is not None else os.environ.get("ROADWATCH_DEVICE_TOKEN", "")
-        self.analyzer = analyzer if analyzer is not None else os.environ.get("ROADWATCH_ANALYZER", "")
-        self.reporter = os.environ.get("ROADWATCH_REPORTER", "")
+        self.db_url = db_url or config_env("DATABASE_URL", "sqlite:///./potpatrol.db")
+        self.storage_dir = Path(storage_dir or config_env("STORAGE_DIR", "./.potpatrol-storage")).resolve()
+        self.token = token if token is not None else config_env("DEVICE_TOKEN")
+        self.analyzer = analyzer if analyzer is not None else config_env("ANALYZER")
+        self.reporter = config_env("REPORTER")
         if not self.token:
-            raise RuntimeError("Set ROADWATCH_DEVICE_TOKEN before starting API")
+            raise RuntimeError("Set POTPATROL_DEVICE_TOKEN before starting API")
         self.storage_dir.mkdir(parents=True, exist_ok=True)
-        self.store = store or (S3Store(os.environ["ROADWATCH_S3_BUCKET"], os.environ.get("ROADWATCH_S3_PREFIX", "")) if os.environ.get("ROADWATCH_S3_BUCKET") else LocalStore(self.storage_dir))
+        bucket = config_env("S3_BUCKET")
+        self.store = store or (S3Store(bucket, config_env("S3_PREFIX")) if bucket else LocalStore(self.storage_dir))
         self.Session = session_factory(self.db_url)
 
 
@@ -80,7 +86,7 @@ def owned(session, model, item_id, owner):
 
 def create_app(db_url=None, storage_dir=None, token=None, analyzer=None, store=None):
     config = Config(db_url, storage_dir, token, analyzer, store)
-    app = FastAPI(title="RoadWatch API", version="1.0.0")
+    app = FastAPI(title="PotPatrol API", version="1.0.0")
     app.state.config = config
 
     def auth(x_device_token: Annotated[str | None, Header()] = None):

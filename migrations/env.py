@@ -5,12 +5,12 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import create_engine, pool
 
-from roadwatch.db import Base
+from potpatrol.db import Base
 
 config = context.config
 if config.config_file_name:
     fileConfig(config.config_file_name)
-url = os.environ.get("ROADWATCH_DATABASE_URL", "sqlite:///./roadwatch.db")
+url = os.environ.get("POTPATROL_DATABASE_URL") or os.environ.get("ROADWATCH_DATABASE_URL") or "sqlite:///./potpatrol.db"
 target_metadata = Base.metadata
 
 

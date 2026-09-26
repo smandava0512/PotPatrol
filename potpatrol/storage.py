@@ -45,7 +45,7 @@ class S3Store:
         if client is None:
             import boto3
             import os
-            client = boto3.client("s3", endpoint_url=os.environ.get("ROADWATCH_S3_ENDPOINT_URL") or None)
+            client = boto3.client("s3", endpoint_url=os.environ.get("POTPATROL_S3_ENDPOINT_URL") or os.environ.get("ROADWATCH_S3_ENDPOINT_URL") or None)
         self.client = client
 
     def key(self, key):

@@ -3,8 +3,8 @@ from pathlib import Path
 from sqlalchemy import create_engine, inspect
 from fastapi.testclient import TestClient
 
-from roadwatch.api import create_app
-from roadwatch.worker import process_once
+from potpatrol.api import create_app
+from potpatrol.worker import process_once
 
 
 MP4 = (Path(__file__).parent.parent / "fixtures" / "sample-drive.mp4").read_bytes()
@@ -14,7 +14,7 @@ TOKEN = {"X-Device-Token": "demo-secret"}
 def test_fixture_drive_end_to_end(tmp_path):
     db_url = f"sqlite:///{(tmp_path / 'data.db').as_posix()}"
     storage = tmp_path / "storage"
-    app = create_app(db_url=db_url, storage_dir=storage, token="demo-secret", analyzer="roadwatch.fixture_worker:analyze")
+    app = create_app(db_url=db_url, storage_dir=storage, token="demo-secret", analyzer="potpatrol.fixture_worker:analyze")
     client = TestClient(app)
     assert client.get("/health").json() == {"status": "ok"}
     assert client.post("/v1/drives", json={}).status_code == 401
