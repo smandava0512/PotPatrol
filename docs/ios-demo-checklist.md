@@ -32,13 +32,13 @@ Open `ios/PotPatrol.xcodeproj`, select **PotPatrol** and an iPhone Simulator, th
 
 ## Fallback / evidence
 
-Sample scenarios are labeled **Demo fixture · not real analysis**. They are deterministic backups, not real-detection acceptance.
+Sample scenarios and server results with `analysis_mode:"fixture"` are labeled **Demo fixture · not real analysis**, including copied/shared report text. They are deterministic backups, not real-detection acceptance. A missing analysis mode is not proof of real inference.
 
 | Check | Result |
 | --- | --- |
-| Package / iPhone SDK compilation | Passed [macOS CI 36275008464](https://github.com/smandava0512/PotPatrol/actions/runs/36275008464); additive fixture-mode follow-up in verification |
-| HTTP MP4 / GPS retries / private evidence / report / no GPS | Passed CI 36275008464 with synthetic worker |
-| Native Release / simulator UI | Passed CI 36275008464; all 5 UI scenarios passed |
+| Package / iPhone SDK compilation | Passed [macOS CI 36275808616](https://github.com/smandava0512/PotPatrol/actions/runs/36275808616); 30 unit checks passed (live integration skipped in the ordinary unit run) |
+| HTTP MP4 / GPS retries / private evidence / report / no GPS | Passed CI 36275808616 in the separate live HTTP test with synthetic worker |
+| Native Release / simulator UI | Passed CI 36275808616; all 5 UI scenarios passed |
 | Mac / Xcode / installed iOS | Pending; iPhone 17 Pro or Pro Max planned |
 | Real pothole / clean clip | Pending capture |
 | Physical UTC/GPS timing / live real analyzer | Pending Mac/phone/server |
