@@ -1,0 +1,52 @@
+{
+  "report_schema_version": 1,
+  "event_id": "event-001",
+  "category": {
+    "value": "pothole",
+    "source": "detector"
+  },
+  "observation_time": {
+    "value": null,
+    "source": "unassessed"
+  },
+  "location_description": {
+    "value": null,
+    "source": "unassessed"
+  },
+  "coordinates": {
+    "value": null,
+    "source": "unassessed"
+  },
+  "description": {
+    "value": "Possible pothole visible in the attached photo taken from a vehicle-mounted phone camera. Automatically detected; not yet confirmed by the reporter.",
+    "source": "template"
+  },
+  "severity": {
+    "value": null,
+    "basis": "not assessed from a single camera frame",
+    "source": "unassessed"
+  },
+  "detector": {
+    "value": {
+      "confidence": 0.82,
+      "hits": 5,
+      "status": "confirmed"
+    },
+    "source": "detector"
+  },
+  "evidence_path": {
+    "value": "evidence/event-001-raw.jpg",
+    "source": "detector"
+  },
+  "destination": {
+    "destination_status": "needs_review",
+    "jurisdiction_candidate": null,
+    "destination_url": null,
+    "candidates": [],
+    "reason": "Location is missing, so no agency can be suggested. Add or confirm the location first.",
+    "sources": [],
+    "source": "registry"
+  },
+  "submission_status": "not_submitted",
+  "submission_note": "Opening the agency page is a hand-off, not a submission. Mark submitted only with a confirmation/receipt number from the agency."
+}

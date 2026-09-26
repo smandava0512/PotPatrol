@@ -15,6 +15,8 @@ class Drive(Base):
     error: Mapped[str | None] = mapped_column(String(500))
     video_key: Mapped[str | None] = mapped_column(String(300))
     upload_expires_at: Mapped[str | None] = mapped_column(String(40))
+    video_started_at: Mapped[str | None] = mapped_column(String(40))
+    analysis_mode: Mapped[str | None] = mapped_column(String(20))
     created_at: Mapped[str] = mapped_column(String(40))
 
 
@@ -54,6 +56,7 @@ class Hazard(Base):
     severity: Mapped[str | None] = mapped_column(String(40))
     severity_basis: Mapped[str | None] = mapped_column(String(200))
     video_offset_ms: Mapped[int] = mapped_column(Integer)
+    observed_at: Mapped[str | None] = mapped_column(String(40))
     location: Mapped[dict | None] = mapped_column(JSON)
     review_state: Mapped[str] = mapped_column(String(30), default="needs_review")
 

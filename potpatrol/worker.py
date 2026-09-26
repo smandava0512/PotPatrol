@@ -38,6 +38,8 @@ def match_location(samples, offset):
 def validate_manifest(manifest, output_dir):
     if not isinstance(manifest, dict) or manifest.get("schema_version") != 1 or not isinstance(manifest.get("events"), list) or len(manifest["events"]) > 100:
         raise ValueError("Invalid worker schema/version or too many events")
+    if manifest.get("mode") not in (None, "model", "fixture"):
+        raise ValueError("Invalid analysis mode")
     checked = []
     for event in manifest["events"]:
         if not isinstance(event, dict) or not isinstance(event.get("video_offset_ms"), int) or isinstance(event["video_offset_ms"], bool) or not 0 <= event["video_offset_ms"] <= 600000:
@@ -97,6 +99,8 @@ def process_once(config):
                 drive = db.get(Drive, drive_id)
                 if drive.status != "processing":
                     raise ValueError("Job no longer owned by worker")
+                drive.analysis_mode = manifest.get("mode") or "legacy"
+                first_frame = datetime.fromisoformat(drive.video_started_at.replace("Z", "+00:00")) if drive.video_started_at else None
                 for index, (event, jpeg) in enumerate(events):
                     hazard = db.scalar(select(Hazard).where(Hazard.drive_id == drive_id, Hazard.event_index == index))
                     if not hazard:
@@ -105,6 +109,7 @@ def process_once(config):
                     hazard.category = event["category"]
                     hazard.confidence = event["confidence"]
                     hazard.video_offset_ms = event["video_offset_ms"]
+                    hazard.observed_at = (first_frame + timedelta(milliseconds=event["video_offset_ms"])).isoformat().replace("+00:00", "Z") if first_frame else None
                     hazard.severity = None
                     hazard.severity_basis = None
                     hazard.location = match_location(samples, event["video_offset_ms"])

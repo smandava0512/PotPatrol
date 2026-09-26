@@ -44,6 +44,17 @@ class Point(BaseModel):
 class Batch(BaseModel):
     samples: list[Point] = Field(max_length=2000)
 
+class CompleteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    video_started_at: datetime | None = None
+
+    @field_validator("video_started_at")
+    @classmethod
+    def require_utc(cls, value):
+        if value is not None and (value.tzinfo is None or value.utcoffset() != timedelta(0)):
+            raise ValueError("video_started_at must be an absolute UTC time")
+        return value
+
 
 def config_env(key, default=""):
     """PotPatrol settings take priority; old RoadWatch names remain compatible."""
@@ -186,15 +197,18 @@ def create_app(db_url=None, storage_dir=None, token=None, analyzer=None, store=N
         return {"accepted": accepted}
 
     @app.post("/v1/drives/{drive_id}/complete")
-    def complete(drive_id: uuid.UUID, owner: Owner):
+    def complete(drive_id: uuid.UUID, payload: CompleteRequest, owner: Owner):
         with config.Session.begin() as db:
             drive = owned(db, Drive, drive_id, owner)
             if drive.status in ("queued", "processing", "complete"):
+                if payload.video_started_at is not None and drive.video_started_at != payload.video_started_at.isoformat().replace("+00:00", "Z"):
+                    raise HTTPException(409, "First-frame time cannot change after completing")
                 return {"drive_id": drive.id, "status": drive.status}
             if drive.status == "failed":
                 raise HTTPException(409, "Use /retry for failed drives")
             if not drive.video_key or not config.store.exists(drive.video_key):
                 raise HTTPException(409, "Upload MP4 before completing")
+            drive.video_started_at = payload.video_started_at.isoformat().replace("+00:00", "Z") if payload.video_started_at else None
             drive.status = "queued"
             drive.stage = "queued"
             db.add(Job(id=str(uuid.uuid4()), drive_id=drive.id, state="pending", attempts=0))
@@ -220,9 +234,11 @@ def create_app(db_url=None, storage_dir=None, token=None, analyzer=None, store=N
         with config.Session() as db:
             drive = owned(db, Drive, drive_id, owner)
             hazards = list(db.scalars(select(Hazard).where(Hazard.drive_id == drive.id).order_by(Hazard.video_offset_ms)))
-            return {"drive_id": drive.id, "status": drive.status, "stage": drive.stage, "error": drive.error, "hazards": [
+            return {"drive_id": drive.id, "status": drive.status, "stage": drive.stage, "error": drive.error,
+                    "analysis_mode": drive.analysis_mode, "hazards": [
                 {"hazard_id": h.id, "category": h.category, "confidence": h.confidence, "severity": h.severity, "severity_basis": h.severity_basis,
-                 "evidence_url": f"/v1/hazards/{h.id}/evidence", "video_offset_ms": h.video_offset_ms, "location": h.location, "review_state": h.review_state}
+                 "evidence_url": f"/v1/hazards/{h.id}/evidence", "video_offset_ms": h.video_offset_ms,
+                 "observed_at": h.observed_at, "location": h.location, "review_state": h.review_state}
                 for h in hazards]}
 
     @app.get("/v1/hazards/{hazard_id}/evidence")
@@ -243,14 +259,18 @@ def create_app(db_url=None, storage_dir=None, token=None, analyzer=None, store=N
             draft = db.scalar(select(ReportDraft).where(ReportDraft.hazard_id == hazard.id))
             if not draft:
                 location = hazard.location or {}
-                fields = {"category": hazard.category, "description": f"{hazard.category.capitalize()} observed in drive video; review evidence and approximate phone location before reporting.", "latitude": location.get("latitude"), "longitude": location.get("longitude")}
+                fields = {"category": hazard.category, "description": f"{hazard.category.capitalize()} observed in drive video; review evidence and approximate phone location before reporting.", "latitude": location.get("latitude"), "longitude": location.get("longitude"), "observation_time": {"value": hazard.observed_at, "source": "device_clock" if hazard.observed_at else "unassessed"}}
                 destination = {"status": "unverified", "url": None}
                 if config.reporter:
                     from .worker import load_callable
-                    package = load_callable(config.reporter)(dict(fields=fields, hazard_id=hazard.id, evidence_url=f"/v1/hazards/{hazard.id}/evidence", location=hazard.location))
+                    package = load_callable(config.reporter)(dict(fields=fields, hazard_id=hazard.id,
+                        event_id=f"event-{hazard.event_index + 1:03d}", category=hazard.category,
+                        confidence=hazard.confidence, review_state=hazard.review_state,
+                        observed_at=hazard.observed_at,
+                        evidence_url=f"/v1/hazards/{hazard.id}/evidence", location=hazard.location))
                     fields = package["fields"]
                     destination = package["destination"]
-                    if destination.get("status") not in ("unverified", "unknown", "verified"):
+                    if destination.get("status") not in ("unverified", "unknown", "verified", "needs_review", "unsupported"):
                         raise HTTPException(422, "Invalid report destination")
                 draft = ReportDraft(id=str(uuid.uuid4()), hazard_id=hazard.id, fields=fields, destination=destination, submission_status="not_submitted")
                 db.add(draft)

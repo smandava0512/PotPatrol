@@ -264,6 +264,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -521,6 +531,25 @@
           "samples"
         ],
         "title": "Batch"
+      },
+      "CompleteRequest": {
+        "properties": {
+          "video_started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Started At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CompleteRequest"
       },
       "HTTPValidationError": {
         "properties": {

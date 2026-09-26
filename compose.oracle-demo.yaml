@@ -1,0 +1,51 @@
+# Isolated, temporary Oracle demo; no changes to the existing Traefik container or other stacks.
+name: potpatrol-demo
+x-potpatrol: &potpatrol
+  build:
+    context: .
+    dockerfile: Dockerfile.demo
+  image: potpatrol-demo:local
+  env_file:
+    - .env
+  environment:
+    POTPATROL_DATABASE_URL: sqlite:////data/potpatrol.db
+    POTPATROL_STORAGE_DIR: /data/media
+    POTPATROL_ANALYZER: potpatrol.integration:analyze
+    POTPATROL_REPORTER: potpatrol.integration:draft_report
+    POTPATROL_ANALYSIS_MODE: fixture
+  volumes:
+    - potpatrol_data:/data
+  restart: unless-stopped
+  labels:
+    com.centurylinklabs.watchtower.enable: "false"
+
+services:
+  api:
+    <<: *potpatrol
+    command: ["uvicorn", "potpatrol.api:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
+    networks:
+      - potpatrol-internal
+      - traefik
+    labels:
+      com.centurylinklabs.watchtower.enable: "false"
+      traefik.enable: "true"
+      traefik.docker.network: aio_network
+      traefik.http.routers.potpatrol.rule: Host(`potpatrol.circlenineteen.me`)
+      traefik.http.routers.potpatrol.entrypoints: websecure
+      traefik.http.routers.potpatrol.tls.certresolver: letsencrypt
+      traefik.http.services.potpatrol.loadbalancer.server.port: "8000"
+
+  worker:
+    <<: *potpatrol
+    command: ["python", "-m", "potpatrol.worker", "--loop"]
+    networks:
+      - potpatrol-internal
+
+networks:
+  potpatrol-internal:
+  traefik:
+    name: aio_network
+    external: true
+
+volumes:
+  potpatrol_data:
