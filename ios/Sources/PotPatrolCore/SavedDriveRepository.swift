@@ -41,6 +41,7 @@ public struct SavedDrive: Codable, Identifiable, Sendable {
         self.demoScenario = demoScenario
     }
     public var isDemo: Bool { demoScenario != nil }
+    public var usesFixtureAnalysis: Bool { isDemo || snapshot?.analysisMode == "fixture" }
 }
 
 public struct DriveLibrary: Sendable {

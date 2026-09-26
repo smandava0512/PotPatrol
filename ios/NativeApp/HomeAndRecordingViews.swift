@@ -49,7 +49,7 @@ struct HomeView: View {
                         NavigationLink(value: AppRoute.drive(drive.id)) {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(drive.createdAt.formatted(date: .abbreviated, time: .shortened)).font(.headline)
-                                Text(drive.isDemo ? "Demo fixture · \(drive.state.rawValue.capitalized)" : drive.state.rawValue.capitalized)
+                                Text(drive.usesFixtureAnalysis ? "Demo fixture · \(drive.state.rawValue.capitalized)" : drive.state.rawValue.capitalized)
                                     .font(.subheadline).foregroundStyle(.secondary)
                             }
                         }.accessibilityIdentifier("drive_\(drive.id.uuidString)")

@@ -124,8 +124,9 @@ public struct DriveSnapshot: Codable, Sendable {
     public var stage: String?
     public var error: String?
     public var hazards: [APIHazard]
+    public var analysisMode: String?
     enum CodingKeys: String, CodingKey {
-        case driveID = "drive_id", status, stage, error, hazards
+        case driveID = "drive_id", status, stage, error, hazards, analysisMode = "analysis_mode"
     }
     public var isFinished: Bool { status == "complete" || status == "failed" }
 }

@@ -13,12 +13,13 @@ This consumer note follows Developer 2's [published v1 contract](https://github.
 | Recovery | Persist server ID, transfer receipt, GPS index, status/errors, evidence and edits. Poll same drive on reopening. |
 | Evidence | Same-origin authenticated GET/private cache; reject foreign origins to protect device token. |
 | Missing location | Keep hazard/evidence/time; show Location unavailable, no invented pin. Editable/shareable report. |
-| Destination | Nested `destination:{status,url}`. Verified HTTPS + valid location required for portal. Unknown/unverified/unsupported remain disabled. |
+| Destination | Nested `destination:{status,url}`. Verified HTTPS + valid location required for portal. `needs_review`/unknown/unverified/unsupported remain disabled. |
+| Analysis mode | Optional `analysis_mode` is retained if returned. `fixture` labels saved drives, results, hazard details, reports and copied/shared text as synthetic. An absent mode remains unknown. |
 | Unsupported | Explicit message; save/edit/share remain available. Isolated demo fixture exercises it, not current server emission. |
 | Submission | Draft / portal opened / actual user receipt. Portal opening never confirms submission. |
 
 ## Pending additions
 
-Developer 2 requested first-frame UTC on 2026-09-26; the app captures it now. Please publish field name/type, endpoint, UTC precision, optionality and observation-time response fixtures. `video_started_at` on `/complete` remains proposed. Missing origins must stay unknown; never substitute create/upload time.
+Developer 2 clarified on 2026-09-26: keep sending `{}` until the pushed contract is supplied; optional `video_started_at` will carry first-frame UTC afterward. The app captures UTC now and keeps it local. Await the published endpoint/schema, UTC precision and observation-time fixtures before sending the field. Missing origins must stay unknown; never substitute create/upload time.
 
-Unsupported status works in the existing nested shape. Developer 3's structured fields and `destination_status`/`destination_url` names need Developer 2's canonical mapping before adoption. Draft edits are local until an update endpoint exists. The current API does not forward the analyzer's fixture/model indicator; confirm the server uses real analysis for the phone demo and publish that indicator before client adoption. [Discord notes](coordination/changes.md) are pending human forwarding/owner acknowledgment.
+Developer 2 confirms `location:null` and nested `destination.status` (`needs_review` or `unsupported`); these are already supported. Developer 3's structured fields and `destination_status`/`destination_url` names need Developer 2's canonical mapping before adoption. Draft edits are local until an update endpoint exists. Developer 2 also announced `analysis_mode:"fixture"`; the app can read and label it without requiring it from the pinned v1 server. Confirm the deployed server uses real analysis for phone acceptance. [Discord notes](coordination/changes.md) are pending human forwarding/owner acknowledgment.

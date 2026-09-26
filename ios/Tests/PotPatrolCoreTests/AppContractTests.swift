@@ -96,6 +96,28 @@ final class AppContractTests: XCTestCase {
         XCTAssertEqual(try DemoFixtures.snapshot(for: SavedDrive(demoScenario: .noHazards)).hazards.count, 0)
         XCTAssertEqual(try DemoFixtures.snapshot(for: SavedDrive(demoScenario: .processingFailure)).status, "failed")
         XCTAssertNil(ReportDestination(status: "future_status", url: "https://example.com").verifiedURL)
+        XCTAssertNil(ReportDestination(status: "needs_review", url: "https://example.com").verifiedURL)
+    }
+    func testServerFixtureModeIsRetainedWithoutChangingUploadWorkflow() throws {
+        let result = Data("{\"drive_id\":\"11111111-1111-4111-8111-111111111111\",\"status\":\"complete\",\"stage\":\"complete\",\"error\":null,\"hazards\":[]}".utf8)
+        var drive = SavedDrive()
+        drive.snapshot = try PotPatrolJSON.decoder().decode(DriveSnapshot.self, from: result)
+        XCTAssertNil(drive.snapshot?.analysisMode)
+        XCTAssertFalse(drive.usesFixtureAnalysis)
+        var object = try JSONSerialization.jsonObject(with: result) as! [String: Any]
+        object["analysis_mode"] = "fixture"
+        drive.snapshot = try PotPatrolJSON.decoder().decode(DriveSnapshot.self, from: JSONSerialization.data(withJSONObject: object))
+        XCTAssertTrue(drive.usesFixtureAnalysis)
+        XCTAssertFalse(drive.isDemo) // Server fixtures still use the normal authenticated workflow.
+        let reopened = try PotPatrolJSON.decoder().decode(SavedDrive.self, from: PotPatrolJSON.encoder().encode(drive))
+        XCTAssertEqual(reopened.snapshot?.analysisMode, "fixture")
+        XCTAssertTrue(reopened.usesFixtureAnalysis)
+        for mode in ["model", "future_mode"] {
+            object["analysis_mode"] = mode
+            drive.snapshot = try PotPatrolJSON.decoder().decode(DriveSnapshot.self, from: JSONSerialization.data(withJSONObject: object))
+            XCTAssertEqual(drive.snapshot?.analysisMode, mode)
+            XCTAssertFalse(drive.usesFixtureAnalysis)
+        }
     }
     func testPortalOpenRequiresActualReceiptForConfirmationAndLocationEditInvalidatesDestination() throws {
         var package = try DemoFixtures.report(for: SavedDrive(demoScenario: .pothole))

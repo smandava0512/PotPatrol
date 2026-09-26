@@ -32,7 +32,7 @@ struct ReportEditorView: View {
     var body: some View {
         Form {
             if let report {
-                if state.drive(driveID)?.isDemo == true { DemoBanner() }
+                if state.drive(driveID)?.usesFixtureAnalysis == true { DemoBanner() }
                 Section("Draft") {
                     TextField("Category", text: $category).focused($focusedField, equals: "category")
                     TextEditor(text: $description).frame(minHeight: 120).accessibilityIdentifier("reportDescription").focused($focusedField, equals: "description")
@@ -53,7 +53,7 @@ struct ReportEditorView: View {
                 }
                 Section("Copy or share") {
                     Button("Copy report text") {
-                        do { UIPasteboard.general.string = try editedReport().shareText }
+                        do { UIPasteboard.general.string = sharedText(try editedReport()) }
                         catch { self.error = error.localizedDescription }
                     }
                     Button("Share text, evidence, and saved video") { Task { await prepareShare() } }
@@ -162,12 +162,16 @@ struct ReportEditorView: View {
             let edited = try editedReport()
             try await state.saveReport(edited, id: driveID, hazardID: hazard.id)
             report = edited
-            var items: [Any] = [edited.shareText]
+            var items: [Any] = [sharedText(edited)]
             if let evidence = try? await state.evidence(driveID, hazard: hazard) { items.append(evidence.1) }
             let video = await state.repository.videoURL(driveID)
             if FileManager.default.fileExists(atPath: video.path) { items.append(video) }
             share = SharePayload(items: items)
         } catch { self.error = error.localizedDescription }
+    }
+    private func sharedText(_ report: EditableReport) -> String {
+        let warning = state.drive(driveID)?.usesFixtureAnalysis == true ? "Demo fixture · not real analysis\n\n" : ""
+        return warning + report.shareText
     }
     private func destinationMessage(_ report: EditableReport) -> String {
         if report.destinationNeedsReview { return "Location edited. Verify the destination for the revised location." }

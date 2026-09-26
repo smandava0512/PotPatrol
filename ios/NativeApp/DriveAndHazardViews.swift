@@ -14,7 +14,7 @@ struct DriveStatusView: View {
     var body: some View {
         List {
             if let drive {
-                if drive.isDemo { DemoBanner() }
+                if drive.usesFixtureAnalysis { DemoBanner() }
                 Section {
                     if let duration = drive.durationMilliseconds { Label("\(duration / 1_000) seconds recorded", systemImage: "video") }
                     if let sampleCount { Label(sampleCount == 0 ? "No GPS samples · approximate location unavailable" : "\(sampleCount) GPS samples saved", systemImage: sampleCount == 0 ? "location.slash" : "location") }
@@ -109,7 +109,7 @@ struct HazardReviewView: View {
     var body: some View {
         List {
             if let hazard {
-                if drive?.isDemo == true { DemoBanner() }
+                if drive?.usesFixtureAnalysis == true { DemoBanner() }
                 Section("Evidence") {
                     if let data = evidenceData, let image = UIImage(data: data) {
                         Image(uiImage: image).resizable().scaledToFit().accessibilityLabel("Hazard evidence image")
