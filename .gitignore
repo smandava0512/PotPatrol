@@ -1,0 +1,7 @@
+.DS_Store
+.build/
+.swiftpm/
+DerivedData/
+xcuserdata/
+*.mp4
+*.mov

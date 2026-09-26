@@ -1,0 +1,27 @@
+name: iOS package
+
+on:
+  push:
+    branches: [codex/roadwatch-ios]
+    paths: ["ios/**", ".github/workflows/ios-package.yml"]
+  pull_request:
+    paths: ["ios/**", ".github/workflows/ios-package.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  swift-package:
+    runs-on: macos-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Swift tests including MP4 round trip
+        run: swift test
+      - name: Build hazard view
+        run: swift build --product RoadWatchUI
