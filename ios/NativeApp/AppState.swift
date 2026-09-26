@@ -15,12 +15,14 @@ final class AppState: ObservableObject {
     @Published var elapsed = 0
     @Published var hasGPS = false
     @Published var savingRecording = false
+    @Published var preparingRecording = false
     @Published var notice: String?
     @Published var settings = ConnectionSettings()
     let repository: SavedDriveRepository
     let recorder = DriveRecorder()
     let videoUploader: BackgroundVideoUploader
     private var busy: Set<UUID> = []
+    private var preparingDriveID: UUID?
     private var backgroundSavingTask: UIBackgroundTaskIdentifier = .invalid
 
     init() {
@@ -72,11 +74,20 @@ final class AppState: ObservableObject {
         } catch { notice = error.localizedDescription }
     }
     func startRecording(demo: DemoScenario? = nil) async {
-        guard activeRecordingID == nil else { return }
+        guard activeRecordingID == nil, !preparingRecording else { return }
+        preparingRecording = true
+        defer { preparingRecording = false; preparingDriveID = nil }
         let drive = SavedDrive(demoScenario: demo)
+        preparingDriveID = drive.id
         do {
             try await repository.save(drive)
             try await repository.saveSamples([], id: drive.id)
+            if demo == nil {
+                _ = try await recorder.preparePermissions()
+                guard UIApplication.shared.applicationState == .active else {
+                    throw RecorderError.unavailable("Return to Pot Patrol and start again while parked.")
+                }
+            }
             elapsed = 0
             hasGPS = false
             savingRecording = false
@@ -140,7 +151,7 @@ final class AppState: ObservableObject {
         }
     }
     private func recoverInterruptedCaptures() async {
-        for drive in drives where drive.state == .recording && drive.id != activeRecordingID {
+        for drive in drives where drive.state == .recording && drive.id != activeRecordingID && drive.id != preparingDriveID {
             do {
                 let url = await repository.videoURL(drive.id)
                 let duration = try await AVURLAsset(url: url).load(.duration).seconds

@@ -41,7 +41,7 @@ public final class DriveRecorder: NSObject, AVCaptureVideoDataOutputSampleBuffer
     private var lastDisplayedSecond = -1
     private var captureError: Error?
     private var finishing = false
-    private var authorizationContinuation: CheckedContinuation<Bool, Never>?
+    private var authorizationContinuations: [CheckedContinuation<Bool, Never>] = []
     public var onElapsed: (@Sendable (Int) -> Void)?
     public var onGPSAvailability: (@Sendable (Bool) -> Void)?
     public var onStopRequested: (@Sendable (String) -> Void)?
@@ -72,8 +72,8 @@ public final class DriveRecorder: NSObject, AVCaptureVideoDataOutputSampleBuffer
         guard allowed else { throw RecorderError.cameraDenied }
         if locationManager.authorizationStatus == .notDetermined {
             return await withCheckedContinuation { continuation in
-                authorizationContinuation = continuation
-                locationManager.requestWhenInUseAuthorization()
+                authorizationContinuations.append(continuation)
+                if authorizationContinuations.count == 1 { locationManager.requestWhenInUseAuthorization() }
             }
         }
         return locationAllowed
@@ -83,8 +83,9 @@ public final class DriveRecorder: NSObject, AVCaptureVideoDataOutputSampleBuffer
     }
     public func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         guard manager.authorizationStatus != .notDetermined else { return }
-        authorizationContinuation?.resume(returning: locationAllowed)
-        authorizationContinuation = nil
+        let waiting = authorizationContinuations
+        authorizationContinuations = []
+        waiting.forEach { $0.resume(returning: locationAllowed) }
         onGPSAvailability?(locationAllowed)
     }
     public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
@@ -203,6 +204,10 @@ public final class DriveRecorder: NSObject, AVCaptureVideoDataOutputSampleBuffer
     public func stop() async throws -> RecordedDrive {
         locationManager.stopUpdatingLocation()
         UIApplication.shared.isIdleTimerDisabled = false
+        defer {
+            locationManager.stopUpdatingLocation()
+            UIApplication.shared.isIdleTimerDisabled = false
+        }
         return try await withCheckedThrowingContinuation { continuation in
             videoQueue.async {
                 guard !self.finishing else { continuation.resume(throwing: RecorderError.unavailable("The drive is already being saved.")); return }

@@ -20,6 +20,8 @@ struct HomeView: View {
                         Button { Task { await state.startRecording() } } label: {
                             Label("Start drive", systemImage: "record.circle").frame(maxWidth: .infinity)
                         }.buttonStyle(.borderedProminent).controlSize(.large).accessibilityIdentifier("recordDrive")
+                            .disabled(state.preparingRecording)
+                        if state.preparingRecording { ProgressView("Preparing recording") }
                         Button("Prepare camera and location") { Task { await state.preparePermissions() } }
                             .font(.footnote)
                     }.padding(.vertical, 8)
