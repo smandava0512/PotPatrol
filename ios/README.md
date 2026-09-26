@@ -1,62 +1,55 @@
-# Pot Patrol iOS Package
+# Pot Patrol iPhone app
 
-`PotPatrolKit` requires Swift 5.9+, iOS 17+ or macOS 14+. Open `Package.swift` in Xcode on a Mac, or add this local package to the iOS app target. This is a library and a hazard detail view; camera permissions, the capture session, app navigation, persistent drive management, and backend endpoints still need to be integrated.
+SwiftUI + AVFoundation + CoreLocation; minimum iOS 17. Windows is the primary development environment. Use the planned iPhone 17 Pro / Pro Max on the final Mac once Xcode supports its installed iOS.
 
-## Authenticated MP4 PUT
+## Windows workflow
 
-```swift
-let instructions = UploadInstructions(
-    url: uploadURLFromBackend,
-    headers: ["Authorization": "Bearer \(shortLivedUploadToken)"]
-)
-let receipt = try await MP4Uploader().upload(fileURL: localMP4, instructions: instructions)
+Edit Swift sources on `codex/developer-1-pot-patrol-ios`. Push runs package tests, iPhone Simulator package compilation, native Release build, native UI tests, and actual HTTP against the pinned Developer 2 backend with its explicitly synthetic analyzer. UI result bundles are GitHub Actions artifacts.
+
+Xcode project and shared scheme are checked in. After adding/removing app or UI-test sources, regenerate with Python's standard library:
+
+```powershell
+C:/msys64/mingw64/bin/python.exe ios/scripts/generate_xcode_project.py
 ```
 
-The body is the raw file, streamed through `URLSession.upload(for:fromFile:delegate:)`; there is no multipart envelope or base64 conversion. Pass exactly the backend-issued headers. Signed URLs and storage-specific headers also work. `Content-Type` defaults to `video/mp4` only when the backend did not supply it. URLs must use HTTPS. Authentication is per request; no token is embedded in source or applied to evidence URLs.
+Tokens, real clips, and signing credentials do not belong in Git. Clips are ignored; the bundled synthetic MP4 is an explicit exception.
 
-Only 2xx statuses produce a receipt. Redirects, 401/403, size rejection, and server errors surface to the caller. The file stays local, so the caller can retry with refreshed upload instructions. The helper uses foreground async transfers; background scheduling, retry policy, and app-relaunch recovery are not implemented yet. A PUT receipt does not queue analysis or mark a drive complete.
+## First Mac step
 
-## First-frame GPS timing
+Clone this branch; open `ios/PotPatrol.xcodeproj`. Select **PotPatrol**, choose an iPhone Simulator, then Run. No new project or third-party generator is needed.
 
-Configure an `AVAssetWriter` with `.mp4`, add its video input, and process frames on one serial recording queue. Call `FirstVideoFrameWriter.append` exactly once with the first candidate video sample and the capture session's synchronization clock (`masterClock` on older SDKs). This helper starts the writing session at that sample's presentation timestamp and returns the origin only after a successful append. If that first frame cannot be written, it cancels the writer; create a new writer rather than keeping an incorrect zero point. Later frames must retain their original presentation timestamps.
-
-```swift
-let origin = try FirstVideoFrameWriter.append(
-    sampleBuffer, to: writer, input: videoInput, captureClock: captureClock
-)
-// In CLLocationManagerDelegate.didUpdateLocations, collect all valid readings:
-let correlation = CaptureTimeBridge.clockCorrelation()
-let readings = locations.compactMap { CaptureTimeBridge.reading(from: $0, correlation: correlation) }
-// After capture, using all accumulated readings and the finalized MP4 duration:
-let samples = RecordingTimeline(origin: origin).samples(
-    from: accumulatedReadings, durationMilliseconds: finalizedVideoDurationMs
-)
-let rawSampleArray = try JSONEncoder().encode(samples)
-// The final backend adapter supplies the POST request and required JSON envelope:
-let gpsReceipt = try await GPSBatchSender().send(samples, request: backendGPSRequest) {
-    try backendGPSBodyEncoder($0)
-}
-```
-
-The video timestamp is converted into host-clock time. Each GPS measurement's `CLLocation.timestamp` is correlated with host time when its callback arrives; callback latency does not become part of the offset. Integer `offset_ms` is rounded from the monotonic difference to the first recorded frame. Cached fixes before that frame, invalid fixes, and samples past the finalized video duration are excluded. Valid zero speed/heading stay zero; unavailable values become JSON null. Timestamps are UTC ISO 8601 with fractional seconds. A drive with no valid GPS encodes as an empty array.
-
-Persist the finalized sample JSON as the GPS sidecar alongside the MP4 before upload. Raw host-clock readings are for the current device boot, not relaunch/reboot synchronization. A device wall-clock correction between measurement and callback delivery remains an ambiguity in CoreLocation's wall-clock timestamps; verify clock behavior on the real phone.
-
-The sample field names follow the plan's initial proposal. `GPSBatchSender` sends a JSON POST using a caller-supplied request and body encoder, preserving its authentication and idempotency headers. It reports non-2xx responses and leaves samples unchanged for retries. The location batch envelope, authentication, idempotency, routes, and drive completion response will be supplied by the backend adapter after the final contract is published.
-
-## Hazard without GPS
-
-The backend adapter can pass `coordinate: nil`. `GeoCoordinate(latitude:longitude:)` also returns nil for missing, partial, nonfinite, or out-of-range coordinates. `HazardDetailView` retains category, evidence, and time into drive, displays **Location unavailable**, and asks for location review before choosing a destination. It creates no map or fallback `(0, 0)` pin. Valid coordinates are always labeled **Approximate location**. Evidence URL authentication must be defined by the backend; the current image view accepts directly fetchable URLs.
-
-## Verification on a Mac
-
-From `ios`:
+Tap **Sample drive → Stop and save**. The labeled fixture moves through upload/processing to a pothole. Open it, review evidence and the approximate map, then edit/save its report. Its unverified destination keeps the portal disabled. **More sample scenarios** covers no GPS, zero hazards, processing failure and unsupported destination. Drives and edits persist through relaunch.
 
 ```sh
+cd ios
 swift test
-swift build --product PotPatrolUI
+xcodebuild -project PotPatrol.xcodeproj -scheme PotPatrol -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
 ```
 
-Tests cover PUT/authentication/raw bytes, preserved files and retry, HTTP failures, delayed GPS delivery, first-frame zero, invalid/empty GPS, millisecond/UTC/null encoding, and a hazard without coordinates. The AVFoundation test creates a real H.264 MP4 from a synthetic frame, decodes it, and verifies its first presentation timestamp is zero.
+## Final phone setup
 
-For an iOS SDK compile in Xcode, select the PotPatrolKit package scheme and an iPhone Simulator destination, then Build. The package tests and hazard view build passed on the [GitHub macOS runner](https://github.com/smandava0512/potholepatel/actions/runs/36268702885). CI also includes an iPhone Simulator SDK compile check. Physical phone and real backend integration still need verification. The local Windows workspace has no Swift or Xcode toolchain.
+Connect the phone, enable Developer Mode if requested, select it in Xcode, and choose your Apple team in **Signing & Capabilities**. Use a unique bundle identifier if needed. Xcode manages provisioning; team/certificate changes stay local. Verify Xcode supports the phone's installed iOS before the demo.
+
+Run and tap **Prepare camera and location** while parked. Denied GPS is supported; denied camera gives a Settings message. Video-only capture requests no microphone access. Leaving the foreground or a camera interruption stops/saves recording.
+
+## Server
+
+Enter Developer 2's URL and device token in **Connection settings**. The token goes into Keychain, never drive files. Use HTTPS for the hosted demo. Debug builds can explicitly allow local HTTP; Release enforces HTTPS. On the phone, use the server computer's LAN IP on the same Wi-Fi, not `127.0.0.1`. Developer 2 must bind its local server to the LAN interface.
+
+Flow: create → upload-init → authenticated raw MP4 PUT → GPS batches up to 2,000 → complete `{}` → poll. GPS uses `{"samples":[...]}`, omits v1-forbidden `heading_deg`, and supports an empty track. Private evidence is authenticated and cached. See [compatibility](../docs/ios-backend-handoff.md).
+
+## Capture and recovery
+
+MP4 source time and GPS offsets start at the first successfully appended frame. Capture timestamp and CoreLocation measurement timestamps are correlated to the host clock. Cached pre-frame fixes and points after final duration are excluded. Startup/callback delay does not shift offsets.
+
+Each drive's Application Support folder owns `drive.mp4`, `locations.json`, `capture-origin.json`, and atomic `drive.json`. First-frame UTC is written immediately after frame append, then stored as `videoStartedAt` on finalization. Recovery restores it for readable interrupted clips. Abrupt termination may leave an unreadable MP4; files are retained and the UI reports this. Wall-clock changes still need device verification.
+
+Capture stops below the backend's ten-minute/100-MiB limits. File-backed background URLSession uses a stable identifier. Server ID, transfer acknowledgment, GPS checkpoints, status, errors, private evidence and reports survive reopening. Transient requests retry up to three times; manual retry renews expired tickets. Background transfers can survive system termination; user force-quit cancels them until reopening/retry. Recovered interrupted recordings require review before upload.
+
+Draft edits stay local because v1 has no update endpoint. Portal opening requires a server-verified HTTPS destination and valid coordinates; changing location requires destination review. Opening never confirms submission. An actual user receipt is required, labeled **Submission confirmed by you**. Share includes text, available cached evidence and the whole saved video attachment.
+
+## Verification limits
+
+Synthetic fixtures test behavior/transport, not real detection. Final acceptance needs physical capture/GPS timing, real pothole and clean clips, Developer 3's analyzer and the deployed service. See [demo checklist](../docs/ios-demo-checklist.md).
+
+Apple references: [camera permission](https://developer.apple.com/documentation/avfoundation/requesting-authorization-to-capture-and-save-media), [location permission](https://developer.apple.com/documentation/CoreLocation/requesting-authorization-to-use-location-services), [background sessions](https://developer.apple.com/documentation/foundation/urlsessionconfiguration/background(withidentifier:)), [device setup](https://developer.apple.com/documentation/xcode/running-your-app-on-simulated-or-physical-devices).

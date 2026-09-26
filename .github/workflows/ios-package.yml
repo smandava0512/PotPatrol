@@ -73,7 +73,7 @@ jobs:
         run: xcodebuild -project PotPatrol.xcodeproj -scheme PotPatrol -configuration Release -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
       - name: Run native app UI acceptance checks
         run: |
-          DEVICE_ID=$(xcrun simctl list devices available --json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for group in d["devices"].values() for x in group if x["name"].startswith("iPhone")))')
+          DEVICE_ID=$(python3 scripts/select_simulator.py)
           xcodebuild -project PotPatrol.xcodeproj -scheme PotPatrol -destination "platform=iOS Simulator,id=$DEVICE_ID" -parallel-testing-enabled NO -resultBundlePath /tmp/PotPatrolUITests.xcresult test CODE_SIGNING_ALLOWED=NO
       - uses: actions/upload-artifact@v4
         if: always()

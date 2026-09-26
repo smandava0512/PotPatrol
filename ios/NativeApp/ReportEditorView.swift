@@ -71,6 +71,7 @@ struct ReportEditorView: View {
             if let error { Text(error).foregroundStyle(.red) }
         }
         .navigationTitle("Review report")
+        .scrollDismissesKeyboard(.interactively)
         .sheet(item: $share) { payload in ActivityShare(items: payload.items) }
         .task {
             do {

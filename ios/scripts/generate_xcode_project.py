@@ -36,6 +36,7 @@ def configurations(name, settings):
     for mode in ("Debug", "Release"):
         current = settings.copy()
         current.update(SWIFT_OPTIMIZATION_LEVEL="-Onone" if mode == "Debug" else "-O")
+        current["ONLY_ACTIVE_ARCH"] = "YES" if mode == "Debug" else "NO"
         current["SWIFT_ACTIVE_COMPILATION_CONDITIONS"] = "DEBUG $(inherited)" if mode == "Debug" else "$(inherited)"
         if name == "app":
             current["INFOPLIST_FILE"] = f"NativeApp/Info-{mode}.plist"

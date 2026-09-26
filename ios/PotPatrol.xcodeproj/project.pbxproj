@@ -182,6 +182,7 @@
 				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
 				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks",);
 				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
+				"ONLY_ACTIVE_ARCH" = "YES";
 				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "DEBUG $(inherited)";
 				"INFOPLIST_FILE" = "NativeApp/Info-Debug.plist";
 			};
@@ -202,6 +203,7 @@
 				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
 				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks",);
 				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
+				"ONLY_ACTIVE_ARCH" = "NO";
 				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "$(inherited)";
 				"INFOPLIST_FILE" = "NativeApp/Info-Release.plist";
 			};
@@ -252,6 +254,7 @@
 				"TEST_TARGET_NAME" = "PotPatrol";
 				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks", "@loader_path/Frameworks",);
 				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
+				"ONLY_ACTIVE_ARCH" = "YES";
 				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "DEBUG $(inherited)";
 			};
 		};
@@ -271,6 +274,7 @@
 				"TEST_TARGET_NAME" = "PotPatrol";
 				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks", "@loader_path/Frameworks",);
 				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
+				"ONLY_ACTIVE_ARCH" = "NO";
 				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "$(inherited)";
 			};
 		};
@@ -302,6 +306,7 @@
 				"CODE_SIGN_STYLE" = "Automatic";
 				"CLANG_ENABLE_MODULES" = "YES";
 				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
+				"ONLY_ACTIVE_ARCH" = "YES";
 				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "DEBUG $(inherited)";
 			};
 		};
@@ -316,6 +321,7 @@
 				"CODE_SIGN_STYLE" = "Automatic";
 				"CLANG_ENABLE_MODULES" = "YES";
 				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
+				"ONLY_ACTIVE_ARCH" = "NO";
 				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "$(inherited)";
 			};
 		};
