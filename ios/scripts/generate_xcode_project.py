@@ -47,7 +47,7 @@ def configurations(name, settings):
 def source_group(folder):
     files, builds = [], []
     for file in sorted((ROOT / folder).glob("*.swift")):
-        ref = add(str(file.relative_to(ROOT)), "PBXFileReference", lastKnownFileType="sourcecode.swift",
+        ref = add(file.relative_to(ROOT).as_posix(), "PBXFileReference", lastKnownFileType="sourcecode.swift",
                   path=file.name, sourceTree="<group>")
         files.append(ref)
         builds.append(add("build-" + folder + file.name, "PBXBuildFile", fileRef=ref))

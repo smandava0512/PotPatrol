@@ -40,7 +40,7 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@v7
         with:
-          repository: smandava0512/potholepatel
+          repository: smandava0512/PotPatrol
           ref: 2392ff54b977ff78a0dfe312f15e1236b741ef89
           path: backend-fixture
           persist-credentials: false

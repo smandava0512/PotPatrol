@@ -30,15 +30,16 @@ final class BackgroundVideoUploader: NSObject, URLSessionTaskDelegate, @unchecke
     }
     func attachBackgroundEvents(completion: @escaping () -> Void) {
         lock.lock()
-        completionHandler = completion
-        eventsFinished = false
+        let alreadyFinished = eventsFinished && pendingWrites == 0
+        completionHandler = alreadyFinished ? nil : completion
         lock.unlock()
+        if alreadyFinished { DispatchQueue.main.async(execute: completion) }
     }
     private func tasks() async -> [URLSessionTask] {
         await withCheckedContinuation { continuation in session.getAllTasks { continuation.resume(returning: $0) } }
     }
     func upload(fileURL: URL, localDriveID: UUID, request: URLRequest) async throws {
-        let existing = await tasks().first { $0.taskDescription == localDriveID.uuidString }
+        if try await repository.load(localDriveID).videoUploaded { return }
         try await withCheckedThrowingContinuation { continuation in
             lock.lock()
             if completedSuccesses.remove(localDriveID) != nil {
@@ -52,11 +53,21 @@ final class BackgroundVideoUploader: NSObject, URLSessionTaskDelegate, @unchecke
                 return
             }
             continuations[localDriveID] = continuation
+            eventsFinished = false
             lock.unlock()
-            let task = existing ?? session.uploadTask(with: request, fromFile: fileURL)
-            task.taskDescription = localDriveID.uuidString
-            task.resume()
+            Task {
+                let existing = await tasks().first { $0.taskDescription == localDriveID.uuidString && $0.state != .completed }
+                beginTransfer(existing: existing, fileURL: fileURL, id: localDriveID, request: request)
+            }
         }
+    }
+    private func beginTransfer(existing: URLSessionTask?, fileURL: URL, id: UUID, request: URLRequest) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard continuations[id] != nil else { return }
+        let task = existing ?? session.uploadTask(with: request, fromFile: fileURL)
+        task.taskDescription = id.uuidString
+        task.resume()
     }
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         guard let id = task.taskDescription.flatMap(UUID.init(uuidString:)) else { return }
