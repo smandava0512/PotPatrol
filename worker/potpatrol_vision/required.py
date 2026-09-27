@@ -86,6 +86,17 @@ def _valid_box(box) -> bool:
             and box[0] < box[2] and box[1] < box[3])
 
 
+def _canonical_box(box) -> list | None:
+    # Gemini sometimes lists opposite corners in reverse order; all four
+    # coordinates are still present, so retain their rectangle without guessing.
+    if not (isinstance(box, list) and len(box) == 4
+            and all(type(v) in (float, int) and math.isfinite(v) and 0 <= v <= 1 for v in box)):
+        return None
+    canonical = [min(box[0], box[2]), min(box[1], box[3]),
+                 max(box[0], box[2]), max(box[1], box[3])]
+    return canonical if _valid_box(canonical) else None
+
+
 def _valid_score(value) -> bool:
     return type(value) in (float, int) and math.isfinite(value) and 0 <= value <= 1
 
@@ -134,11 +145,11 @@ def reconcile(events: list[dict], selected: FrameSelector, output_dir: str, vali
             if not isinstance(findings, list) or len(findings) > 5:
                 raise AnalysisError("Gemini frame scan failed or returned invalid data")
             for finding in findings:
+                box = _canonical_box(finding.get("bbox")) if isinstance(finding, dict) else None
                 if (not isinstance(finding, dict) or finding.get("category") not in ("pothole", "road_damage")
-                        or not _valid_box(finding.get("bbox"))
+                        or box is None
                         or not _valid_score(finding.get("confidence"))):
                     raise AnalysisError("Gemini frame scan failed or returned invalid box")
-                box = finding["bbox"]
                 if (box[1] + box[3]) / 2 < 0.30:
                     continue  # valid response outside the supported road region, not provider failure
                 if any(ev["first_seen_ms"] - 1500 <= offset <= ev["last_seen_ms"] + 1500

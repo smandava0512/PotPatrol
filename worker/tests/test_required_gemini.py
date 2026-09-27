@@ -367,3 +367,16 @@ def test_required_ignores_well_formed_boxes_above_the_road_without_failing(clip)
     manifest = analyze(video, out, detector=Detector(), validator=gemini)
     assert manifest["events"] == []
     assert len(gemini.scans) == manifest["gemini_frames_scanned"] == 24
+
+
+def test_required_preserves_reversed_corner_coordinates_as_one_box(clip):
+    video, out = clip
+    gemini = Gemini(hazards=[{"category": "road_damage", "bbox": [0.466, 0.75, 0.589, 0.363],
+                             "confidence": 0.75}])
+    manifest = analyze(video, out, detector=Detector(), validator=gemini)
+    validate_manifest(manifest, out)
+    assert manifest["vision_mode"] == "gemini_required"
+    assert manifest["gemini_frames_scanned"] == 24
+    assert len(manifest["events"]) == 1
+    assert manifest["events"][0]["bbox"] == [0.466, 0.363, 0.589, 0.75]
+    assert manifest["events"][0]["source"] == "gemini_scan"
