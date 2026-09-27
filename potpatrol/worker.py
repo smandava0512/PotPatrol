@@ -90,10 +90,12 @@ def process_once(config):
             return False
         job_id = candidate.id
         drive_id = candidate.drive_id
-        drive = db.get(Drive, drive_id)
-        drive.status = "processing"
-        drive.stage = "analyzing"
-        drive.error = None
+        active = db.execute(update(Drive).where(
+            Drive.id == drive_id, Drive.status.in_(("queued", "processing")),
+        ).values(status="processing", stage="analyzing", error=None))
+        if active.rowcount != 1:
+            db.rollback()
+            return False
     stop_renewal = Event()
 
     def heartbeat():
@@ -131,9 +133,13 @@ def process_once(config):
                 ).values(lease_until=(final_now + timedelta(minutes=30)).isoformat().replace("+00:00", "Z")))
                 if held.rowcount != 1:
                     return False
+                active = db.execute(update(Drive).where(
+                    Drive.id == drive_id, Drive.status == "processing",
+                ).values(status=Drive.status))
+                if active.rowcount != 1:
+                    db.rollback()
+                    return False
                 drive = db.get(Drive, drive_id)
-                if drive.status != "processing":
-                    raise ValueError("Job no longer owned by worker")
                 drive.analysis_mode = manifest.get("mode") or "legacy"
                 first_frame = datetime.fromisoformat(drive.video_started_at.replace("Z", "+00:00")) if drive.video_started_at else None
                 for index, (event, jpeg) in enumerate(events):
@@ -175,10 +181,12 @@ def process_once(config):
                      error=str(exc)[:500], finished_at=failed_at))
             if held.rowcount != 1:
                 return False
-            drive = db.get(Drive, drive_id)
-            drive.status = "failed"
-            drive.stage = "failed"
-            drive.error = str(exc)[:500]
+            active = db.execute(update(Drive).where(
+                Drive.id == drive_id, Drive.status == "processing",
+            ).values(status="failed", stage="failed", error=str(exc)[:500]))
+            if active.rowcount != 1:
+                db.rollback()
+                return False
         return True
     finally:
         stop_renewal.set()

@@ -20,6 +20,12 @@ class Drive(Base):
     created_at: Mapped[str] = mapped_column(String(40))
 
 
+class DeletionReceipt(Base):
+    """Opaque owner-bound tombstone; retained indefinitely for idempotent DELETE."""
+    __tablename__ = "deletion_receipts"
+    digest: Mapped[str] = mapped_column(String(64), primary_key=True)
+
+
 class Location(Base):
     __tablename__ = "locations"
     __table_args__ = (UniqueConstraint("drive_id", "offset_ms"), Index("ix_locations_drive_offset", "drive_id", "offset_ms"))

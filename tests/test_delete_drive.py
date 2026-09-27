@@ -58,7 +58,7 @@ def test_foreign_unauthenticated_missing_and_repeated_delete_do_not_touch_other_
     assert client.delete(f"/v1/drives/{other}", headers=ONE).status_code == 404
     assert (tmp_path / "media" / "videos" / first).exists()
     assert client.delete(f"/v1/drives/{first}", headers=ONE).status_code == 204
-    assert client.delete(f"/v1/drives/{first}", headers=ONE).status_code == 404
+    assert client.delete(f"/v1/drives/{first}", headers=ONE).status_code == 204
     assert client.delete(f"/v1/drives/00000000-0000-0000-0000-000000000000", headers=ONE).status_code == 404
     assert client.get(f"/v1/drives/{other}", headers=two).status_code == 200
 
@@ -93,9 +93,9 @@ def test_s3_prefix_cleanup_paginates_and_never_deletes_siblings(tmp_path):
         def upload_file(self, filename, bucket, key, ExtraArgs):
             self.objects[(bucket, key)] = Path(filename).read_bytes()
 
-        def list_objects_v2(self, Bucket, Prefix):
+        def list_object_versions(self, Bucket, Prefix):
             keys = sorted(k for bucket, k in self.objects if bucket == Bucket and k.startswith(Prefix))
-            return {"Contents": [{"Key": k} for k in keys[:2]]} if keys else {}
+            return {"Versions": [{"Key": k, "VersionId": "null"} for k in keys[:2]], "IsTruncated": len(keys) > 2}
 
         def delete_objects(self, Bucket, Delete):
             for item in Delete["Objects"]:
@@ -118,8 +118,8 @@ def test_s3_refuses_false_delete_success_and_recovers_on_retry():
             self.objects = {"scope/videos/abc/a.mp4"}
             self.stuck = True
 
-        def list_objects_v2(self, Bucket, Prefix):
-            return {"Contents": [{"Key": key} for key in self.objects if key.startswith(Prefix)]}
+        def list_object_versions(self, Bucket, Prefix):
+            return {"Versions": [{"Key": key, "VersionId": "null"} for key in self.objects if key.startswith(Prefix)]}
 
         def delete_objects(self, Bucket, Delete):
             if not self.stuck:

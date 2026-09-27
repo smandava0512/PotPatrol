@@ -83,18 +83,21 @@ class S3Store:
         remote_prefix = self.key(prefix.rstrip("/") + "/")
         previous = None
         while True:
-            page = self.client.list_objects_v2(Bucket=self.bucket, Prefix=remote_prefix)
-            keys = [item["Key"] for item in page.get("Contents", [])]
-            if not keys:
+            page = self.client.list_object_versions(Bucket=self.bucket, Prefix=remote_prefix)
+            versions = [
+                {"Key": item["Key"], "VersionId": item["VersionId"]}
+                for kind in ("Versions", "DeleteMarkers") for item in page.get(kind, [])
+            ]
+            if not versions:
                 if page.get("IsTruncated"):
                     raise OSError("Incomplete storage listing")
                 return
-            if keys == previous:
+            if versions == previous:
                 raise OSError("Storage deletion made no progress")
-            previous = keys
-            for start in range(0, len(keys), 1000):
-                result = self.client.delete_objects(Bucket=self.bucket, Delete={"Objects": [
-                    {"Key": key} for key in keys[start:start + 1000]], "Quiet": True})
+            previous = versions
+            for start in range(0, len(versions), 1000):
+                result = self.client.delete_objects(Bucket=self.bucket, Delete={
+                    "Objects": versions[start:start + 1000], "Quiet": True})
                 if result.get("Errors"):
                     raise OSError("Storage deletion failed")
-            # Re-list from the start, including pages beyond the first one.
+            # Re-list, verifying both historical versions and delete markers are gone.

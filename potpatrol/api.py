@@ -13,7 +13,7 @@ from fastapi.responses import Response as BytesResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import delete, select, update
 
-from .db import Drive, Evidence, Hazard, Job, Location, ReportDraft, session_factory
+from .db import DeletionReceipt, Drive, Evidence, Hazard, Job, Location, ReportDraft, session_factory
 from .storage import LocalStore, S3Store
 
 MAX_BYTES = 100 * 1024 * 1024
@@ -193,7 +193,12 @@ def create_app(db_url=None, storage_dir=None, token=None, analyzer=None, store=N
         accepted = 0
         with config.Session.begin() as db:
             drive = owned(db, Drive, drive_id, owner)
-            if drive.status not in ("created", "uploading"):
+            # Lock the parent before inserting children, including empty batches.
+            allowed = db.execute(update(Drive).where(
+                Drive.id == drive.id, Drive.owner == owner,
+                Drive.status.in_(("created", "uploading")),
+            ).values(status=Drive.status))
+            if allowed.rowcount != 1:
                 raise HTTPException(409, "Locations are closed for this drive")
             offsets = [p.offset_ms for p in batch.samples]
             if len(offsets) != len(set(offsets)):
@@ -237,15 +242,15 @@ def create_app(db_url=None, storage_dir=None, token=None, analyzer=None, store=N
     def retry(drive_id: uuid.UUID, owner: Owner):
         with config.Session.begin() as db:
             drive = owned(db, Drive, drive_id, owner)
-            if drive.status != "failed":
+            # Job then Drive, matching worker and deletion lock order.
+            job = db.scalar(select(Job).where(Job.drive_id == drive.id).with_for_update())
+            if not job or not db.execute(update(Drive).where(
+                Drive.id == drive.id, Drive.owner == owner, Drive.status == "failed",
+            ).values(status="queued", stage="queued", error=None)).rowcount:
                 raise HTTPException(409, "Only failed drives can be retried")
-            job = db.scalar(select(Job).where(Job.drive_id == drive.id))
             job.state = "pending"
             job.lease_until = None
             job.error = None
-            drive.status = "queued"
-            drive.stage = "queued"
-            drive.error = None
         return {"drive_id": str(drive_id), "status": "queued"}
 
     @app.get("/v1/drives/{drive_id}")
@@ -266,26 +271,41 @@ def create_app(db_url=None, storage_dir=None, token=None, analyzer=None, store=N
         503: {"description": "Storage cleanup failed; retry deletion"},
     })
     def delete_drive(drive_id: uuid.UUID, owner: Owner):
+        drive_key = str(drive_id)
+        digest = hashlib.sha256(f"{owner}:{drive_key}".encode()).hexdigest()
         with config.Session.begin() as db:
-            # Take the write lock before inspecting or removing anything. Worker
-            # publication and uploads also write under a transaction.
+            # Lock Job before Drive: worker claims/finalizes in this order.
+            db.scalar(select(Job).where(Job.drive_id == drive_key).with_for_update())
             locked = db.execute(update(Drive).where(
-                Drive.id == str(drive_id), Drive.owner == owner,
+                Drive.id == drive_key, Drive.owner == owner,
             ).values(status="deleting"))
             if locked.rowcount != 1:
+                if db.get(DeletionReceipt, digest):
+                    return Response(status_code=204)
                 raise HTTPException(404, "Not found")
-            try:
-                for prefix in (f"videos/{drive_id}", f"evidence/{drive_id}"):
-                    config.store.delete_prefix(prefix)
-            except Exception as exc:
-                raise HTTPException(503, "Storage cleanup failed; retry deletion") from exc
-            hazard_ids = select(Hazard.id).where(Hazard.drive_id == str(drive_id))
+        # Intent is durable before touching storage; retry always resumes here.
+        try:
+            for prefix in (f"videos/{drive_id}", f"evidence/{drive_id}"):
+                config.store.delete_prefix(prefix)
+        except Exception as exc:
+            raise HTTPException(503, "Storage cleanup failed; retry deletion") from exc
+        with config.Session.begin() as db:
+            db.scalar(select(Job).where(Job.drive_id == drive_key).with_for_update())
+            locked = db.execute(update(Drive).where(
+                Drive.id == drive_key, Drive.owner == owner, Drive.status == "deleting",
+            ).values(status=Drive.status))
+            if locked.rowcount != 1:
+                if db.get(DeletionReceipt, digest):
+                    return Response(status_code=204)
+                raise HTTPException(409, "Deletion state changed; retry")
+            hazard_ids = select(Hazard.id).where(Hazard.drive_id == drive_key)
             db.execute(delete(ReportDraft).where(ReportDraft.hazard_id.in_(hazard_ids)))
             db.execute(delete(Evidence).where(Evidence.hazard_id.in_(hazard_ids)))
-            db.execute(delete(Hazard).where(Hazard.drive_id == str(drive_id)))
-            db.execute(delete(Location).where(Location.drive_id == str(drive_id)))
-            db.execute(delete(Job).where(Job.drive_id == str(drive_id)))
-            db.execute(delete(Drive).where(Drive.id == str(drive_id), Drive.owner == owner))
+            db.execute(delete(Hazard).where(Hazard.drive_id == drive_key))
+            db.execute(delete(Location).where(Location.drive_id == drive_key))
+            db.execute(delete(Job).where(Job.drive_id == drive_key))
+            db.execute(delete(Drive).where(Drive.id == drive_key, Drive.owner == owner))
+            db.add(DeletionReceipt(digest=digest))
         return Response(status_code=204)
 
     @app.get("/v1/hazards/{hazard_id}/evidence")
@@ -303,6 +323,11 @@ def create_app(db_url=None, storage_dir=None, token=None, analyzer=None, store=N
     def report_draft(hazard_id: uuid.UUID, owner: Owner):
         with config.Session.begin() as db:
             hazard = owned(db, Hazard, hazard_id, owner)
+            allowed = db.execute(update(Drive).where(
+                Drive.id == hazard.drive_id, Drive.owner == owner, Drive.status != "deleting",
+            ).values(status=Drive.status))
+            if allowed.rowcount != 1:
+                raise HTTPException(409, "Drive is being deleted")
             draft = db.scalar(select(ReportDraft).where(ReportDraft.hazard_id == hazard.id))
             if not draft:
                 location = hazard.location or {}
