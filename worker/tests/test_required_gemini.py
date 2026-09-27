@@ -380,3 +380,41 @@ def test_required_preserves_reversed_corner_coordinates_as_one_box(clip):
     assert len(manifest["events"]) == 1
     assert manifest["events"][0]["bbox"] == [0.466, 0.363, 0.589, 0.75]
     assert manifest["events"][0]["source"] == "gemini_scan"
+
+
+def test_required_retains_many_distinct_scan_events_within_backend_limit(clip, monkeypatch):
+    from potpatrol_vision import pipeline
+
+    def sparse_frames(path, fps, info):
+        info.duration_ms = 120000
+        info.width, info.height = 160, 120
+        info.sample_fps = fps
+        for index in range(20):
+            info.frames_decoded += 1
+            info.frames_sampled += 1
+            yield index * 6000, np.zeros((120, 160, 3), np.uint8)
+
+    class ManyGemini(Gemini):
+        def scan(self, path):
+            super().scan(path)
+            return [{"category": "pothole", "bbox": box, "confidence": 0.82}
+                    for box in ([0.1, 0.4, 0.2, 0.5], [0.8, 0.4, 0.9, 0.5])]
+
+    monkeypatch.setattr(pipeline, "sample_frames", sparse_frames)
+    video, out = clip
+    manifest = analyze(video, out, detector=Detector(), validator=ManyGemini())
+    validate_manifest(manifest, out)
+    assert len(manifest["events"]) == 40
+    assert manifest["vision_mode"] == "gemini_required"
+
+
+def test_required_accepts_six_bounded_findings_in_one_frame(clip):
+    video, out = clip
+    boxes = [[round(0.02 + index * 0.15, 3), 0.5,
+              round(0.12 + index * 0.15, 3), 0.6] for index in range(6)]
+    gemini = Gemini(hazards=[{"category": "pothole", "bbox": box, "confidence": 0.8}
+                             for box in boxes])
+    manifest = analyze(video, out, detector=Detector(), validator=gemini)
+    validate_manifest(manifest, out)
+    assert len(manifest["events"]) == 6
+    assert manifest["gemini_frames_scanned"] == 24

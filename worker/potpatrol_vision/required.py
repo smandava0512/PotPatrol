@@ -12,6 +12,7 @@ from .schema import AnalysisError, MAX_EVENTS
 
 SCAN_LIMIT = 24
 CANDIDATE_LIMIT = 12
+MAX_FINDINGS_PER_FRAME = 10
 
 
 def _moving_match(previous, current) -> bool:
@@ -142,7 +143,7 @@ def reconcile(events: list[dict], selected: FrameSelector, output_dir: str, vali
                 raise AnalysisError(f"Gemini frame scan failed ({type(e).__name__})") from e
             finally:
                 os.remove(path)
-            if not isinstance(findings, list) or len(findings) > 5:
+            if not isinstance(findings, list) or len(findings) > MAX_FINDINGS_PER_FRAME:
                 raise AnalysisError("Gemini frame scan failed or returned invalid data")
             for finding in findings:
                 box = _canonical_box(finding.get("bbox")) if isinstance(finding, dict) else None

@@ -7,7 +7,7 @@ SCHEMA_VERSION = 1
 CATEGORIES = ("pothole", "road_damage")
 STATUSES = ("confirmed", "needs_review")
 MODES = ("model", "fixture")
-MAX_EVENTS = 25
+MAX_EVENTS = 100  # matches the backend manifest and persistence bound
 
 
 class AnalysisError(Exception):
