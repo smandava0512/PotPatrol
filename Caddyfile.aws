@@ -1,0 +1,4 @@
+api.potpatrol.miami {
+    encode zstd gzip
+    reverse_proxy api:8000
+}

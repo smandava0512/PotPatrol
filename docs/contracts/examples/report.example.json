@@ -1,0 +1,131 @@
+{
+  "report_schema_version": 1,
+  "event_id": "event-001",
+  "category": {
+    "value": "pothole",
+    "source": "user"
+  },
+  "observation_time": {
+    "value": "2026-09-26T18:04:12Z",
+    "source": "device_clock"
+  },
+  "location_description": {
+    "value": "Near SW 8th St near SW 107th Ave, Miami, FL (approximate, from reverse geocoding); GPS 25.75630, -80.37400 (GPS accuracy about \u00b18 m)",
+    "source": "reverse_geocode+gps"
+  },
+  "coordinates": {
+    "value": {
+      "lat": 25.7563,
+      "lon": -80.374,
+      "accuracy_m": 8.0
+    },
+    "source": "gps"
+  },
+  "description": {
+    "value": "Pothole visible in the attached photo taken from a vehicle-mounted phone camera at 2026-09-26T18:04:12Z, at GPS 25.75630, -80.37400 (GPS accuracy about \u00b18 m). Automatically detected and confirmed by the reporter from the attached photo.",
+    "source": "template"
+  },
+  "severity": {
+    "value": null,
+    "basis": "not assessed from a single camera frame",
+    "source": "unassessed"
+  },
+  "detector": {
+    "value": {
+      "confidence": 0.82,
+      "hits": 5,
+      "status": "confirmed"
+    },
+    "source": "detector"
+  },
+  "evidence_path": {
+    "value": "evidence/event-001-raw.jpg",
+    "source": "detector"
+  },
+  "destination": {
+    "destination_status": "needs_review",
+    "jurisdiction_candidate": "Miami-Dade County Department of Transportation and Public Works (via 311)",
+    "destination_url": "https://311.miamidade.gov/311/s/?c__st=COMPWPH",
+    "candidates": [
+      {
+        "agency_id": "miami-dade-dtpw-311",
+        "name": "Miami-Dade County Department of Transportation and Public Works (via 311)",
+        "handles": "County-maintained roads, plus main roads in Doral, Miami Gardens and Palmetto Bay. Not private roads/communities. Most municipalities maintain most of their own roads.",
+        "destination_url": "https://311.miamidade.gov/311/s/?c__st=COMPWPH",
+        "destination_kind": "browser_handoff",
+        "phone": "311 or 305-468-5900",
+        "sources": [
+          {
+            "url": "https://www.miamidade.gov/global/service.page?Mduid_service=ser1483631370424631",
+            "checked": "2026-09-26",
+            "what": "County 'Report Problems' page: scope of county pothole repair; online/phone intake"
+          },
+          {
+            "url": "https://www.miami.gov/My-Home-Neighborhood/Solve-a-Problem/Report-a-Pothole",
+            "checked": "2026-09-26",
+            "what": "Official page linking the 311 pothole form URL used here"
+          }
+        ],
+        "why_candidate": "Agency serves this area; road ownership not established"
+      },
+      {
+        "agency_id": "city-of-miami",
+        "name": "City of Miami (via Miami-Dade 311 portal)",
+        "handles": "City of Miami roadways only (\"The City of Miami only repairs potholes on city roadways\").",
+        "destination_url": "https://311.miamidade.gov/311/s/?c__st=COMPWPH",
+        "destination_kind": "browser_handoff",
+        "phone": "311 or 305-468-5900",
+        "sources": [
+          {
+            "url": "https://www.miami.gov/My-Home-Neighborhood/Solve-a-Problem/Report-a-Pothole",
+            "checked": "2026-09-26",
+            "what": "City pothole page: scope + form link"
+          }
+        ],
+        "why_candidate": "Agency serves this area; road ownership not established"
+      },
+      {
+        "agency_id": "fdot-d6",
+        "name": "Florida Department of Transportation, District Six",
+        "handles": "State highway system roads in Miami-Dade and Monroe counties.",
+        "destination_url": "https://fdot.gov/info/moredot/districts/dist6.shtm",
+        "destination_kind": "contact_page",
+        "phone": "(305) 470-5349 (District Six Communications)",
+        "sources": [
+          {
+            "url": "https://fdot.gov/info/moredot/districts/dist6.shtm",
+            "checked": "2026-09-26",
+            "what": "District Six page: counties served, contact numbers. No dedicated pothole form found on this page."
+          }
+        ],
+        "why_candidate": "Agency serves this area; road ownership not established"
+      }
+    ],
+    "reason": "Road ownership (city / county / FDOT state road) could not be established from GPS alone. Confirm which agency maintains this road before reporting.",
+    "sources": [
+      {
+        "url": "https://www.miamidade.gov/global/service.page?Mduid_service=ser1483631370424631",
+        "checked": "2026-09-26",
+        "what": "County 'Report Problems' page: scope of county pothole repair; online/phone intake"
+      },
+      {
+        "url": "https://www.miami.gov/My-Home-Neighborhood/Solve-a-Problem/Report-a-Pothole",
+        "checked": "2026-09-26",
+        "what": "Official page linking the 311 pothole form URL used here"
+      },
+      {
+        "url": "https://www.miami.gov/My-Home-Neighborhood/Solve-a-Problem/Report-a-Pothole",
+        "checked": "2026-09-26",
+        "what": "City pothole page: scope + form link"
+      },
+      {
+        "url": "https://fdot.gov/info/moredot/districts/dist6.shtm",
+        "checked": "2026-09-26",
+        "what": "District Six page: counties served, contact numbers. No dedicated pothole form found on this page."
+      }
+    ],
+    "source": "registry"
+  },
+  "submission_status": "not_submitted",
+  "submission_note": "Opening the agency page is a hand-off, not a submission. Mark submitted only with a confirmation/receipt number from the agency."
+}

@@ -1,0 +1,28 @@
+{
+  "note": "Representative excerpts from the canonical API with Dev 3 fixture mode and reporter enabled; fixture hazards are synthetic, not real detections.",
+  "complete_request_legacy": {},
+  "complete_request_with_time": {"video_started_at": "2026-09-26T18:04:12Z"},
+  "fixture_drive_excerpt": {
+    "status": "complete",
+    "analysis_mode": "fixture",
+    "hazards": [
+      {"category": "pothole", "video_offset_ms": 12250, "observed_at": "2026-09-26T18:04:24.250000Z", "severity": null, "location": null, "review_state": "needs_review"},
+      {"category": "pothole", "video_offset_ms": 36700, "observed_at": "2026-09-26T18:04:48.700000Z", "severity": null, "location": null, "review_state": "needs_review"}
+    ]
+  },
+  "legacy_no_time_hazard_excerpt": {"video_offset_ms": 36700, "observed_at": null, "location": null},
+  "no_gps_report_excerpt": {
+    "fields": {"category": "pothole", "description": "Possible pothole visible in the attached photo taken from a vehicle-mounted phone camera. Automatically detected; not yet confirmed by the reporter.", "latitude": null, "longitude": null, "observation_time": {"value": null, "source": "unassessed"}, "provenance": {"location_description": {"value": null, "source": "unassessed"}}},
+    "destination": {"status": "needs_review", "url": null, "candidates": [], "jurisdiction_candidate": null, "reason": "Location is missing, so no agency can be suggested. Add or confirm the location first.", "sources": []},
+    "submission_status": "not_submitted"
+  },
+  "miami_dade_report_excerpt": {
+    "fields": {"category": "pothole", "latitude": 25.7563, "longitude": -80.374, "observation_time": {"value": "2026-09-26T18:04:48.700000Z", "source": "device_clock"}},
+    "destination": {"status": "needs_review", "url": null, "candidates": [{"agency_id": "miami-dade-dtpw-311"}, {"agency_id": "city-of-miami"}, {"agency_id": "fdot-d6"}]},
+    "submission_status": "not_submitted"
+  },
+  "outside_supported_area_report_excerpt": {
+    "destination": {"status": "unsupported", "url": null},
+    "submission_status": "not_submitted"
+  }
+}
