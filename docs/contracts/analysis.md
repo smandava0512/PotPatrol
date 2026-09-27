@@ -23,7 +23,7 @@ python -m potpatrol_vision VIDEO_PATH OUTPUT_DIR [--fixture] [--sample-fps 4] [-
   `analysis.json`, `evidence/event-NNN.jpg` (annotated), `evidence/event-NNN-raw.jpg` (clean frame).
 - **Fixture mode** (`--fixture` or env `POTPATROL_ANALYSIS_MODE=fixture`): ignores the model and returns the deterministic
   manifest in `docs/contracts/examples/analysis.example.json` plus evidence JPEGs. Use it for backend/app integration
-  and as the live-demo fallback. The fixture manifest has `"mode": "fixture"`, so it can never be confused with a real result.
+  only for explicitly labeled local/demo scenarios; never as a fallback for a real drive. The fixture manifest has `"mode": "fixture"`, and the Gemini-required backend rejects it.
 
 ## 2. Success vs. failure (never conflate a crash with "0 hazards")
 
@@ -93,7 +93,7 @@ Bounds: at most **25** events per clip (highest scores kept). Events are sorted 
 
 ### Explicit `gemini_required` vision mode (staged; not deployed)
 
-`POTPATROL_VISION_MODE=gemini_required` requires `POTPATROL_ANALYSIS_MODE=model` and a private `GEMINI_API_KEY`. It rejects fixture runs, missing SDK/key, incomplete API responses and >12 YOLO event candidates rather than returning success. It sends at most 24 PTS-selected frame JPEGs throughout each clip and at most 12 raw YOLO evidence JPEGs to Gemini (no video or metadata). It validates every retained YOLO event, drops Gemini-rejected candidates, and scans even zero-YOLO clips for missed damage. Results from Gemini alone have category `pothole` or `road_damage`, `source=gemini_scan`, confidence from that image response, a boxed frame JPEG and `status=needs_review`; validated YOLO results have `source=yolo_gemini_validated` and `status=needs_review`. `road_damage` is additive to the v1 category enum; consumers should handle category as text. The report draft for that category says "Possible road damage". Top-level additive `vision_mode=gemini_required` and `gemini_frames_scanned` record the path used, while existing `model` and `validator` name both actual systems. This does not claim measured accuracy or human confirmation.
+`POTPATROL_VISION_MODE=gemini_required` requires `POTPATROL_ANALYSIS_MODE=model` and a private, worker-only `GEMINI_API_KEY`. It rejects fixture runs, missing SDK/key, incomplete API responses and >12 YOLO event candidates rather than returning success. A bounded streaming selector retains up to 24 JPEG frames across the clip (including first and last) and sends at most 12 raw YOLO evidence JPEGs to Gemini (no video or GPS). Reservoir sampling does **not** guarantee evenly spaced coverage or perfect recall for brief hazards. It validates every retained YOLO event, drops Gemini-rejected candidates, and scans even zero-YOLO clips for missed damage. Results from Gemini alone have category `pothole` or `road_damage`, `source=gemini_scan`, confidence from that image response, a boxed frame JPEG and `status=needs_review`; validated YOLO results have `source=yolo_gemini_validated` and `status=needs_review`. `road_damage` is additive to the v1 category enum; consumers should handle category as text. The report draft for that category says "Possible road damage". Top-level additive `vision_mode=gemini_required`, `validator.model` and `gemini_frames_scanned` record the path used; backend stores these on the drive and each hazard's source/validation for authenticated GET and report drafts. This does not claim measured accuracy or human confirmation.
 
 ### Time origin
 
