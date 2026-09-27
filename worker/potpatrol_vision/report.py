@@ -74,8 +74,15 @@ def draft_report(hazard: dict, evidence_path: str | None, lat: float | None, lon
         "description": _f(description, "template"),
         "severity": {"value": None, "basis": "not assessed from a single camera frame", "source": "unassessed"},
         "detector": _f({"confidence": hazard.get("confidence"), "hits": hazard.get("hits"),
-                        "status": hazard.get("status")}, "detector"),
-        "evidence_path": _f(evidence_path, "detector" if evidence_path else "unassessed"),
+                        "status": hazard.get("status")},
+                       "validator" if hazard.get("source") == "gemini_scan" else "detector"),
+        "source": _f(hazard.get("source"), "worker" if hazard.get("source") else "unassessed"),
+        "vision_mode": _f(hazard.get("vision_mode"), "worker" if hazard.get("vision_mode") else "unassessed"),
+        "validator_model": _f(hazard.get("validator_model"), "worker" if hazard.get("validator_model") else "unassessed"),
+        "gemini_frames_scanned": _f(hazard.get("gemini_frames_scanned"),
+                                    "worker" if hazard.get("gemini_frames_scanned") is not None else "unassessed"),
+        "evidence_path": _f(evidence_path, "validator" if hazard.get("source") == "gemini_scan" else
+                            "detector" if evidence_path else "unassessed"),
         # Advisory second opinion on the evidence image; never overrides the user's review or the description.
         "ai_check": _f(hazard.get("validation"), "validator" if hazard.get("validation") else "unassessed"),
         "destination": {**dest, "source": "registry"},

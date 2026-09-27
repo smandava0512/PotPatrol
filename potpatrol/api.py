@@ -72,6 +72,7 @@ class Config:
             raise RuntimeError("POTPATROL_DEVICE_TOKENS contains an empty credential")
         self.tokens = tuple(dict.fromkeys(([self.token] if self.token else []) + additional))
         self.analyzer = analyzer if analyzer is not None else config_env("ANALYZER")
+        self.vision_mode = config_env("VISION_MODE").lower()
         self.reporter = config_env("REPORTER")
         if not self.tokens:
             raise RuntimeError("Set POTPATROL_DEVICE_TOKEN or POTPATROL_DEVICE_TOKENS before starting API")
@@ -259,10 +260,13 @@ def create_app(db_url=None, storage_dir=None, token=None, analyzer=None, store=N
             drive = owned(db, Drive, drive_id, owner)
             hazards = list(db.scalars(select(Hazard).where(Hazard.drive_id == drive.id).order_by(Hazard.video_offset_ms)))
             return {"drive_id": drive.id, "status": drive.status, "stage": drive.stage, "error": drive.error,
-                    "analysis_mode": drive.analysis_mode, "hazards": [
+                    "analysis_mode": drive.analysis_mode, "vision_mode": drive.vision_mode,
+                    "validator_model": drive.validator_model, "gemini_frames_scanned": drive.gemini_frames_scanned,
+                    "hazards": [
                 {"hazard_id": h.id, "category": h.category, "confidence": h.confidence, "severity": h.severity, "severity_basis": h.severity_basis,
                  "evidence_url": f"/v1/hazards/{h.id}/evidence", "video_offset_ms": h.video_offset_ms,
-                 "observed_at": h.observed_at, "location": h.location, "review_state": h.review_state}
+                 "observed_at": h.observed_at, "location": h.location, "review_state": h.review_state,
+                 "source": h.source, "validation": h.validation}
                 for h in hazards]}
 
     @app.delete("/v1/drives/{drive_id}", status_code=204, responses={
@@ -341,14 +345,23 @@ def create_app(db_url=None, storage_dir=None, token=None, analyzer=None, store=N
                 raise HTTPException(409, "Drive is being deleted")
             draft = db.scalar(select(ReportDraft).where(ReportDraft.hazard_id == hazard.id))
             if not draft:
+                drive = db.get(Drive, hazard.drive_id)
                 location = hazard.location or {}
                 fields = {"category": hazard.category, "description": f"{hazard.category.capitalize()} observed in drive video; review evidence and approximate phone location before reporting.", "latitude": location.get("latitude"), "longitude": location.get("longitude"), "observation_time": {"value": hazard.observed_at, "source": "device_clock" if hazard.observed_at else "unassessed"}}
                 destination = {"status": "unverified", "url": None}
+                if hazard.source:
+                    fields["provenance"] = {"source": hazard.source, "vision_mode": drive.vision_mode,
+                                            "validator_model": drive.validator_model,
+                                            "gemini_frames_scanned": drive.gemini_frames_scanned,
+                                            "validation": hazard.validation}
                 if config.reporter:
                     from .worker import load_callable
                     package = load_callable(config.reporter)(dict(fields=fields, hazard_id=hazard.id,
                         event_id=f"event-{hazard.event_index + 1:03d}", category=hazard.category,
                         confidence=hazard.confidence, review_state=hazard.review_state,
+                        source=hazard.source, validation=hazard.validation,
+                        vision_mode=drive.vision_mode, validator_model=drive.validator_model,
+                        gemini_frames_scanned=drive.gemini_frames_scanned,
                         observed_at=hazard.observed_at,
                         evidence_url=f"/v1/hazards/{hazard.id}/evidence", location=hazard.location))
                     fields = package["fields"]

@@ -29,7 +29,10 @@ def draft_report(context: dict) -> dict:
     location = context.get("location") or {}
     report = vision_draft(
         {"event_id": context["event_id"], "category": context["category"],
-         "confidence": context["confidence"], "status": context["review_state"]},
+         "confidence": context["confidence"], "status": context["review_state"],
+         "source": context.get("source"), "validation": context.get("validation"),
+         "vision_mode": context.get("vision_mode"), "validator_model": context.get("validator_model"),
+         "gemini_frames_scanned": context.get("gemini_frames_scanned")},
         context["evidence_url"], location.get("latitude"), location.get("longitude"),
         location.get("horizontal_accuracy_m"), context.get("observed_at"),
     )

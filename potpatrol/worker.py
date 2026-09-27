@@ -1,6 +1,7 @@
 import argparse
 import importlib
 import json
+import math
 import shutil
 import tempfile
 import time
@@ -36,11 +37,23 @@ def match_location(samples, offset):
     return {"latitude": before.latitude + fraction * (after.latitude - before.latitude), "longitude": before.longitude + fraction * (after.longitude - before.longitude), "horizontal_accuracy_m": max(before.horizontal_accuracy_m, after.horizontal_accuracy_m), "source": "phone_sample" if before.offset_ms == after.offset_ms else "phone_interpolated"}
 
 
-def validate_manifest(manifest, output_dir):
+def validate_manifest(manifest, output_dir, *, required=False):
     if not isinstance(manifest, dict) or manifest.get("schema_version") != 1 or not isinstance(manifest.get("events"), list) or len(manifest["events"]) > 100:
         raise ValueError("Invalid worker schema/version or too many events")
     if manifest.get("mode") not in (None, "model", "fixture"):
         raise ValueError("Invalid analysis mode")
+    vision_mode = manifest.get("vision_mode")
+    validator = manifest.get("validator")
+    model = validator.get("model") if isinstance(validator, dict) else None
+    frames = manifest.get("gemini_frames_scanned")
+    valid_provenance = (vision_mode == "gemini_required" and manifest.get("mode") == "model"
+                        and isinstance(validator, dict) and validator.get("provider") == "gemini"
+                        and isinstance(model, str) and 1 <= len(model) <= 100
+                        and type(frames) is int and 1 <= frames <= 24)
+    if required and not valid_provenance:
+        raise ValueError("Gemini required: missing or invalid manifest provenance")
+    if vision_mode == "gemini_required" and not valid_provenance:
+        raise ValueError("Invalid Gemini provenance")
     checked = []
     for event in manifest["events"]:
         if not isinstance(event, dict) or not isinstance(event.get("video_offset_ms"), int) or isinstance(event["video_offset_ms"], bool) or not 0 <= event["video_offset_ms"] <= 600000:
@@ -48,8 +61,22 @@ def validate_manifest(manifest, output_dir):
         if not isinstance(event.get("category"), str) or not 1 <= len(event["category"]) <= 80:
             raise ValueError("Invalid event category")
         confidence = event.get("confidence")
-        if not isinstance(confidence, (int, float)) or isinstance(confidence, bool) or not 0 <= confidence <= 1:
+        if type(confidence) not in (int, float) or not math.isfinite(confidence) or not 0 <= confidence <= 1:
             raise ValueError("Invalid event confidence")
+        source = event.get("source")
+        validation = event.get("validation")
+        if vision_mode == "gemini_required":
+            if source not in ("gemini_scan", "yolo_gemini_validated"):
+                raise ValueError("Gemini required: event source missing")
+            if source == "yolo_gemini_validated" and (
+                not isinstance(validation, dict) or validation.get("provider") != "gemini"
+                or validation.get("model") != model or validation.get("is_hazard") is not True
+                or type(validation.get("confidence")) not in (int, float)
+                or not math.isfinite(validation["confidence"])
+                or not 0 <= validation["confidence"] <= 1):
+                raise ValueError("Gemini required: invalid candidate validation")
+            if source == "gemini_scan" and validation is not None:
+                raise ValueError("Gemini scan cannot claim candidate validation")
         name = event.get("evidence_path")
         if not isinstance(name, str) or Path(name).is_absolute() or ":" in name or ".." in Path(name).parts:
             raise ValueError("Unsafe evidence path")
@@ -124,7 +151,7 @@ def process_once(config):
             if manifest_path != (Path(workspace) / "analysis.json").resolve():
                 raise ValueError("Worker must return output_dir/analysis.json")
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            events = validate_manifest(manifest, workspace)
+            events = validate_manifest(manifest, workspace, required=config.vision_mode == "gemini_required")
             with config.Session.begin() as db:
                 final_now = datetime.now(timezone.utc)
                 held = db.execute(update(Job).where(
@@ -141,6 +168,9 @@ def process_once(config):
                     return False
                 drive = db.get(Drive, drive_id)
                 drive.analysis_mode = manifest.get("mode") or "legacy"
+                drive.vision_mode = manifest.get("vision_mode") if manifest.get("vision_mode") == "gemini_required" else None
+                drive.validator_model = manifest["validator"]["model"] if drive.vision_mode else None
+                drive.gemini_frames_scanned = manifest["gemini_frames_scanned"] if drive.vision_mode else None
                 first_frame = datetime.fromisoformat(drive.video_started_at.replace("Z", "+00:00")) if drive.video_started_at else None
                 for index, (event, jpeg) in enumerate(events):
                     hazard = db.scalar(select(Hazard).where(Hazard.drive_id == drive_id, Hazard.event_index == index))
@@ -155,6 +185,9 @@ def process_once(config):
                     hazard.severity_basis = None
                     hazard.location = match_location(samples, event["video_offset_ms"])
                     hazard.review_state = "needs_review"
+                    hazard.source = event.get("source") if drive.vision_mode else None
+                    validation = event.get("validation") if hazard.source == "yolo_gemini_validated" else None
+                    hazard.validation = {key: validation[key] for key in ("provider", "model", "is_hazard", "confidence")} if validation else None
                     key = f"evidence/{drive_id}/{index}.jpg"
                     config.store.put_file(key, jpeg, "image/jpeg")
                     evidence = db.scalar(select(Evidence).where(Evidence.hazard_id == hazard.id))

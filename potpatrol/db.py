@@ -17,6 +17,9 @@ class Drive(Base):
     upload_expires_at: Mapped[str | None] = mapped_column(String(40))
     video_started_at: Mapped[str | None] = mapped_column(String(40))
     analysis_mode: Mapped[str | None] = mapped_column(String(20))
+    vision_mode: Mapped[str | None] = mapped_column(String(30))
+    validator_model: Mapped[str | None] = mapped_column(String(100))
+    gemini_frames_scanned: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[str] = mapped_column(String(40))
 
 
@@ -66,6 +69,8 @@ class Hazard(Base):
     observed_at: Mapped[str | None] = mapped_column(String(40))
     location: Mapped[dict | None] = mapped_column(JSON)
     review_state: Mapped[str] = mapped_column(String(30), default="needs_review")
+    source: Mapped[str | None] = mapped_column(String(40))
+    validation: Mapped[dict | None] = mapped_column(JSON)
 
 
 class Evidence(Base):
