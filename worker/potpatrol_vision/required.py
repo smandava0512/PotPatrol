@@ -24,7 +24,19 @@ def _moving_match(previous, current) -> bool:
     new_area = (current[2] - current[0]) * (current[3] - current[1])
     return (abs(px - cx) <= 0.08 and 0 <= cy - py <= 0.22
             and 0.8 * old_area <= new_area <= 2.5 * old_area
-            and min(previous[2], current[2]) > max(previous[0], current[0]))
+            and iou(previous, current) > 0)
+
+
+def _matches_validated_yolo(event, box, offset: int, category: str) -> bool:
+    """Match a scanned object to a confirmed candidate on either side of its evidence frame."""
+    if event["category"] != category:
+        return False
+    gap = offset - event["video_offset_ms"]
+    if 0 < gap <= 5000:
+        return _moving_match(event["bbox"], box)
+    if -5000 <= gap < 0:
+        return _moving_match(box, event["bbox"])
+    return False
 
 
 class FrameSelector:
@@ -131,6 +143,9 @@ def reconcile(events: list[dict], selected: FrameSelector, output_dir: str, vali
                 if any(ev["first_seen_ms"] - 1500 <= offset <= ev["last_seen_ms"] + 1500
                        and iou(ev["bbox"], box) >= 0.5 for ev in events + accepted):
                     continue  # duplicate localization, not merely a nearby hazard
+                if any(_matches_validated_yolo(ev, box, offset, finding["category"])
+                       for ev in accepted if ev["source"] == "yolo_gemini_validated"):
+                    continue  # account for a moving candidate beyond its original YOLO box
                 match = next((n for n, (ev, last_box, last_offset) in enumerate(scan_tracks)
                               if ev["event_id"] not in matched_in_frame
                               and ev["category"] == finding["category"]

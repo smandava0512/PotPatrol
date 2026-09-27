@@ -149,6 +149,78 @@ def test_moving_camera_scan_associates_downward_same_hazard_across_sparse_frames
     assert not gemini.checks
 
 
+@pytest.mark.parametrize("yolo_offset,scan_offset,yolo_box,scan_box", [
+    (1000, 2000, [0.4, 0.5, 0.55, 0.65], [0.39, 0.62, 0.56, 0.79]),
+    (2000, 1000, [0.39, 0.62, 0.56, 0.79], [0.4, 0.5, 0.55, 0.65]),
+])
+def test_moving_camera_scan_does_not_duplicate_validated_yolo(
+        tmp_path, yolo_offset, scan_offset, yolo_box, scan_box):
+    import cv2
+    from potpatrol_vision.required import FrameSelector, reconcile
+
+    frame = np.zeros((120, 160, 3), np.uint8)
+    selected = FrameSelector()
+    for offset in (0, 1000, 2000):
+        selected.add(offset, frame)
+    evidence = tmp_path / "evidence"
+    evidence.mkdir()
+    assert cv2.imwrite(str(evidence / "event-001-raw.jpg"), frame)
+    yolo = {"event_id": "event-001", "category": "pothole", "video_offset_ms": yolo_offset,
+            "first_seen_ms": yolo_offset, "last_seen_ms": yolo_offset,
+            "bbox": yolo_box, "evidence_raw_path": "evidence/event-001-raw.jpg"}
+
+    class MovingGemini(Gemini):
+        def scan(self, path):
+            super().scan(path)
+            return ([{"category": "pothole", "bbox": scan_box, "confidence": 0.9}]
+                    if len(self.scans) == scan_offset // 1000 + 1 else [])
+
+    result = reconcile([yolo], selected, str(tmp_path), MovingGemini())
+    assert len(result) == 1
+    assert result[0]["source"] == "yolo_gemini_validated"
+
+
+def test_scan_keeps_distinct_pothole_below_validated_yolo(tmp_path):
+    import cv2
+    from potpatrol_vision.required import FrameSelector, reconcile
+
+    frame = np.zeros((120, 160, 3), np.uint8)
+    selected = FrameSelector()
+    for offset in (0, 1000, 2000):
+        selected.add(offset, frame)
+    evidence = tmp_path / "evidence"
+    evidence.mkdir()
+    assert cv2.imwrite(str(evidence / "event-001-raw.jpg"), frame)
+    yolo = {"event_id": "event-001", "category": "pothole", "video_offset_ms": 1000,
+            "first_seen_ms": 1000, "last_seen_ms": 1000,
+            "bbox": [0.4, 0.5, 0.55, 0.65], "evidence_raw_path": "evidence/event-001-raw.jpg"}
+
+    class DistinctGemini(Gemini):
+        def scan(self, path):
+            super().scan(path)
+            return ([{"category": "pothole", "bbox": [0.4, 0.67, 0.55, 0.82],
+                     "confidence": 0.9}] if len(self.scans) == 3 else [])
+
+    result = reconcile([yolo], selected, str(tmp_path), DistinctGemini())
+    assert len(result) == 2
+    assert {item["source"] for item in result} == {"gemini_scan", "yolo_gemini_validated"}
+
+
+def test_scan_keeps_distinct_potholes_in_successive_nonoverlapping_frames(clip):
+    video, out = clip
+
+    class DistinctGemini(Gemini):
+        def scan(self, path):
+            super().scan(path)
+            boxes = {2: [0.4, 0.5, 0.55, 0.65], 3: [0.4, 0.67, 0.55, 0.82]}
+            return ([{"category": "pothole", "bbox": boxes[len(self.scans)], "confidence": 0.9}]
+                    if len(self.scans) in boxes else [])
+
+    m = analyze(video, out, detector=Detector(), validator=DistinctGemini())
+    assert len(m["events"]) == 2
+    assert all(item["source"] == "gemini_scan" for item in m["events"])
+
+
 def test_scan_keeps_distinct_hazards_in_same_and_later_frames(clip):
     video, out = clip
 

@@ -15,11 +15,20 @@ final class PotPatrolUITests: XCTestCase {
             reveal(app.buttons[scenario])
             app.buttons[scenario].tap()
         } else { reveal(app.buttons["demoDrive"]); app.buttons["demoDrive"].tap() }
-        guard app.buttons["stopRecording"].waitForExistence(timeout: 15) else {
+        let stop = app.buttons["stopRecording"]
+        guard stop.waitForExistence(timeout: 15) else {
             XCTFail("Recording did not show its Stop control.\n" + app.debugDescription)
             return
         }
-        app.buttons["stopRecording"].tap()
+        stop.tap()
+        let dismissed = NSPredicate(format: "exists == false")
+        if XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: dismissed, object: stop)], timeout: 6) != .completed,
+           stop.isEnabled {
+            // A tap during full-screen-cover animation can be dropped by the simulator.
+            stop.tap()
+        }
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: dismissed, object: stop)], timeout: 25),
+                       .completed, "Stop did not finish.\n" + app.debugDescription)
     }
     func testSavedDriveDeletionRequiresConfirmationAndDisappearsAfterSuccess() {
         finishDemo("demoNoHazards")
@@ -36,7 +45,9 @@ final class PotPatrolUITests: XCTestCase {
         let warning = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@ AND label CONTAINS %@",
                                                            "Deletes this drive’s video, GPS", "connected server")).firstMatch
         XCTAssertTrue(warning.exists)
-        app.buttons["Cancel"].tap()
+        // iOS 26 presents this confirmationDialog as a popover without an AX Cancel button.
+        app.otherElements["PopoverDismissRegion"].tap()
+        XCTAssertFalse(warning.exists)
         XCTAssertTrue(drive.exists)
         delete.tap()
         app.buttons["Delete from iPhone and server"].tap()
