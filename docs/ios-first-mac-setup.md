@@ -4,21 +4,30 @@ Continue editing on Windows and using the existing macOS CI. Use the Mac to sign
 
 ## Install Xcode
 
+**For this demo:** The available MacBook Air M2 is on macOS Ventura 13.5 and the
+iPhone is on iOS 26.6.2. Apple's [Xcode requirements](https://developer.apple.com/support/xcode)
+list Xcode 15.2 as compatible with Ventura 13.5, but Xcode 27 requires macOS
+Tahoe 26.6 or later. Ventura-era Xcode cannot prepare this iOS 26 phone. With
+the Mac owner's approval, back up the Mac and update it to a compatible macOS
+before installing the released Xcode 27; otherwise use a different up-to-date Mac.
+Do not modify a borrowed Mac's operating system without its owner's consent.
+
 1. Check the Mac's macOS version in **About This Mac** and the phone's iOS version in **Settings → General → About**. Choose a released Xcode that supports both using [Apple's compatibility table](https://developer.apple.com/xcode/system-requirements). The exact installed versions matter; “latest iOS” alone is not enough to choose Xcode.
 2. Install Xcode from the Mac App Store or [Apple Developer downloads](https://developer.apple.com/download/all/?q=Xcode). Open it, accept the license and finish the first-launch component installation. Install iOS platform support and an iPhone Simulator runtime when prompted. See [Apple's component instructions](https://developer.apple.com/documentation/xcode/downloading-and-installing-additional-xcode-components).
 3. In **Xcode → Settings → Apple Accounts**, sign in with your Apple Account. A [Personal Team](https://developer.apple.com/help/account/basics/about-your-developer-account) supports installing and testing on your own device. Personal Team provisioning expires after seven days, so rebuild/reinstall near the demo if necessary.
 
-## Get the Developer 1 branch
+## Get the merged source
 
 Open Terminal on the Mac and run:
 
 ```sh
-git clone --branch codex/developer-1-pot-patrol-ios --single-branch https://github.com/smandava0512/PotPatrol.git
+git clone --branch main --single-branch https://github.com/smandava0512/PotPatrol.git
 cd PotPatrol
 open ios/PotPatrol.xcodeproj
 ```
 
-For an existing clone, save any local changes first, then fetch and switch to `codex/developer-1-pot-patrol-ios`. This branch contains the iOS app; do not create a new blank Xcode project.
+After PR #3 merges, an existing clone can save local changes, fetch `main`,
+and switch to it. The iOS app is already included; do not create a new Xcode project.
 
 Choose scheme **PotPatrol**, an iPhone Simulator, and **Run**. Check **Sample drive → Stop and save → Results → Pothole → Review report**. Under **More sample scenarios**, try missing GPS, unsupported destination and destination candidates. These samples are labeled fixtures.
 

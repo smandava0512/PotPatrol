@@ -1,4 +1,4 @@
-"""Run Swift client tests against a pinned, separately checked-out backend fixture."""
+"""Run Swift client tests against the backend in this PR's merged checkout."""
 from pathlib import Path
 import os
 import secrets
@@ -19,7 +19,11 @@ with tempfile.TemporaryDirectory(prefix="potpatrol-contract-") as temporary:
     env.update(POTPATROL_DEVICE_TOKEN=secrets.token_urlsafe(32),
                POTPATROL_DATABASE_URL=f"sqlite:///{folder / 'drives.sqlite'}",
                POTPATROL_STORAGE_DIR=str(folder / "storage"),
-               POTPATROL_ANALYZER="potpatrol.fixture_worker:analyze")
+               POTPATROL_ANALYZER="potpatrol.integration:analyze",
+               POTPATROL_REPORTER="potpatrol.integration:draft_report",
+               POTPATROL_ANALYSIS_MODE="fixture",
+               POTPATROL_VALIDATOR="off",
+               PYTHONPATH=str(backend / "worker"))
     base = f"http://127.0.0.1:{port}"
     processes = []
     with (folder / "backend.log").open("w+") as log:

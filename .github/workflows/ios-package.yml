@@ -38,21 +38,15 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/checkout@v7
-        with:
-          repository: smandava0512/PotPatrol
-          ref: 2392ff54b977ff78a0dfe312f15e1236b741ef89
-          path: backend-fixture
-          persist-credentials: false
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - name: Install the published backend in an isolated environment
+      - name: Install the merged backend in an isolated environment
         run: |
           python -m venv /tmp/potpatrol-contract-venv
-          /tmp/potpatrol-contract-venv/bin/python -m pip install -e ../backend-fixture
-      - name: Authenticated MP4, idempotent GPS, worker, private evidence, report, no GPS
-        run: /tmp/potpatrol-contract-venv/bin/python scripts/run_backend_integration.py ../backend-fixture
+          /tmp/potpatrol-contract-venv/bin/python -m pip install -e .. numpy
+      - name: Authenticated MP4, idempotent GPS, fixture worker, private evidence and flat reports
+        run: /tmp/potpatrol-contract-venv/bin/python scripts/run_backend_integration.py ..
 
   native-app:
     runs-on: macos-latest

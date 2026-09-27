@@ -4,7 +4,7 @@ SwiftUI + AVFoundation + CoreLocation; minimum iOS 17. Windows is the primary de
 
 ## Windows workflow
 
-Edit Swift sources on `codex/developer-1-pot-patrol-ios`. Push runs package tests, iPhone Simulator package compilation, native Release build, native UI tests, and actual HTTP against the pinned Developer 2 backend with its explicitly synthetic analyzer. UI result bundles are GitHub Actions artifacts.
+Edit Swift sources on a task branch. Pull requests run package tests, iPhone Simulator package compilation, native Release build, native UI tests, and actual HTTP against the backend in the same merged checkout with its explicitly synthetic analyzer. UI result bundles are GitHub Actions artifacts.
 
 Xcode project and shared scheme are checked in. After adding/removing app or UI-test sources, regenerate with Python's standard library:
 
