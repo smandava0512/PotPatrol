@@ -20,6 +20,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from potpatrol_vision import analyze  # noqa: E402
+from potpatrol_vision.validators import NullValidator  # noqa: E402
 from potpatrol_vision.detector import PotholeDetector  # noqa: E402
 
 
@@ -57,7 +58,7 @@ def main():
             labels = [int(x) for x in r["pothole_offsets_ms"].split(";") if x.strip()]
             out = os.path.join(out_root, f"conf{conf}", os.path.splitext(os.path.basename(clip))[0])
             t0 = time.perf_counter()
-            m = analyze(clip, out, detector=det, sample_fps=a.sample_fps)
+            m = analyze(clip, out, fixture=False, detector=det, validator=NullValidator(), sample_fps=a.sample_fps)
             dt = time.perf_counter() - t0
             tp, miss, fps = score(m["events"], labels, a.tolerance_ms)
             tot["tp"] += tp

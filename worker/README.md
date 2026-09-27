@@ -55,6 +55,20 @@ Tuning flags: `--sample-fps` (default 4), `--conf` (default 0.35), `--device cpu
 3. `python worker/eval/evaluate.py worker/eval/labels.csv --conf 0.25 0.35 0.5`
 4. Open `worker/eval/out/conf*/<clip>/evidence/*.jpg` and check every event against the labels.
 
+## Optional Gemini check
+
+Off by default. It sends at most `POTPATROL_VALIDATE_MAX` (default 5) raw evidence JPEGs per clip to Google, so get Dev 2's OK first.
+
+```bash
+.venv/Scripts/pip install -e "worker[gemini]"
+# put GEMINI_API_KEY=... in the repo-root .env (git-ignored), then:
+python -m potpatrol_vision.validators worker/potpatrol_vision/fixtures/evidence/event-001-raw.jpg   # one-image check
+POTPATROL_VALIDATOR=gemini python -m potpatrol_vision path/to/drive.mp4 runs/drive1
+```
+
+Results appear as an advisory `validation` object on events and as `ai_check` in reports. They never drop an event.
+Any API error is logged to stderr and the run continues without it.
+
 ## Report + destination
 
 ```python

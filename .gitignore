@@ -15,3 +15,12 @@ db.env
 *.pem
 *.key
 *.p8
+runs/
+output/
+**/eval/clips/
+**/eval/out/
+*.pt
+*.mp4
+*.mov
+!fixtures/*.mp4
+!worker/potpatrol_vision/fixtures/**

@@ -1,7 +1,7 @@
 """Deterministic, evidence-bounded report drafting. Every field carries provenance.
 
 Never states dimensions, depth, lane, route, ownership or injury risk; those are not observable from what we have.
-Optional LLM polishing belongs behind validators.ReportAssistant and must fall back to this output.
+An optional validator result (validators.py) is passed through as `ai_check` and never changes the text.
 """
 from __future__ import annotations
 
@@ -74,6 +74,8 @@ def draft_report(hazard: dict, evidence_path: str | None, lat: float | None, lon
         "detector": _f({"confidence": hazard.get("confidence"), "hits": hazard.get("hits"),
                         "status": hazard.get("status")}, "detector"),
         "evidence_path": _f(evidence_path, "detector" if evidence_path else "unassessed"),
+        # Advisory second opinion on the evidence image; never overrides the user's review or the description.
+        "ai_check": _f(hazard.get("validation"), "validator" if hazard.get("validation") else "unassessed"),
         "destination": {**dest, "source": "registry"},
         "submission_status": "not_submitted",
         "submission_note": "Opening the agency page is a hand-off, not a submission. Mark submitted only with a "

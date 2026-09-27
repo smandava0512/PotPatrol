@@ -13,6 +13,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+gemini = ["google-genai>=1.0"]
 
 [project.scripts]
 potpatrol-analyze = "potpatrol_vision.pipeline:main"

@@ -2,8 +2,10 @@
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from potpatrol.api import create_app
+from potpatrol.db import ReportDraft
 from potpatrol.worker import process_once
 
 TOKEN = {"X-Device-Token": "demo-secret"}
@@ -44,6 +46,10 @@ def test_no_gps_or_start_time_preserves_hazards_and_report(tmp_path, monkeypatch
         assert draft["destination"]["url"] is None
         assert draft["destination"]["candidates"] == []
         assert draft["fields"]["observation_time"]["value"] is None
+        assert draft["fields"]["category"] == "pothole"
+        assert isinstance(draft["fields"]["description"], str) and draft["fields"]["description"]
+        assert draft["fields"]["latitude"] is None and draft["fields"]["longitude"] is None
+        assert draft["fields"]["provenance"]["coordinates"] == {"value": None, "source": "unassessed"}
         assert draft["submission_status"] == "not_submitted"
 
 
@@ -55,6 +61,12 @@ def test_first_frame_time_maps_offset_and_miami_is_review(tmp_path, monkeypatch)
     assert hazard["observed_at"] == "2026-09-26T18:04:48.700000Z"
     draft = client.post(f"/v1/hazards/{hazard['hazard_id']}/report-draft", json={}, headers=TOKEN).json()
     assert draft["fields"]["observation_time"]["value"] == hazard["observed_at"]
+    assert draft["fields"]["category"] == "pothole"
+    assert isinstance(draft["fields"]["description"], str) and draft["fields"]["description"]
+    assert draft["fields"]["latitude"] == sample["latitude"]
+    assert draft["fields"]["longitude"] == sample["longitude"]
+    assert draft["fields"]["provenance"]["category"] == {"value": "pothole", "source": "detector"}
+    assert draft["fields"]["provenance"]["coordinates"]["source"] == "gps"
     assert draft["destination"]["status"] == "needs_review"
     assert len(draft["destination"]["candidates"]) == 3
     assert draft["submission_status"] == "not_submitted"
@@ -70,3 +82,22 @@ def test_outside_supported_region_and_invalid_start_time(tmp_path, monkeypatch):
     assert draft["destination"]["url"] is None
     created = client.post("/v1/drives", json={}, headers=TOKEN).json()["drive_id"]
     assert client.post(f"/v1/drives/{created}/complete", json={"video_started_at": "2026-09-26T18:04:12"}, headers=TOKEN).status_code == 422
+
+
+def test_existing_wrapped_draft_is_repaired_without_new_report(tmp_path, monkeypatch):
+    sample = {"offset_ms": 36700, "recorded_at": "2026-09-26T18:04:49Z",
+              "latitude": 25.7563, "longitude": -80.374, "horizontal_accuracy_m": 8}
+    client, drive = drive_flow(tmp_path, monkeypatch, samples=[sample])
+    hazard = next(h for h in drive["hazards"] if h["video_offset_ms"] == 36700)
+    url = f"/v1/hazards/{hazard['hazard_id']}/report-draft"
+    draft = client.post(url, json={}, headers=TOKEN).json()
+    legacy_fields = draft["fields"]["provenance"]
+    # Reproduce rows cached by the old adapter, not just the phone cache.
+    with client.app.state.config.Session.begin() as db:
+        db.get(ReportDraft, draft["report_id"]).fields = legacy_fields
+    repaired = client.post(url, json={}, headers=TOKEN).json()
+    assert repaired == draft
+    assert client.post(url, json={}, headers=TOKEN).json() == repaired
+    with client.app.state.config.Session() as db:
+        assert db.get(ReportDraft, draft["report_id"]).fields == draft["fields"]
+        assert len(list(db.scalars(select(ReportDraft)))) == 1

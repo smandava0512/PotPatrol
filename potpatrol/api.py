@@ -293,6 +293,12 @@ def create_app(db_url=None, storage_dir=None, token=None, analyzer=None, store=N
                         raise HTTPException(422, "Invalid report destination")
                 draft = ReportDraft(id=str(uuid.uuid4()), hazard_id=hazard.id, fields=fields, destination=destination, submission_status="not_submitted")
                 db.add(draft)
+            elif all(isinstance(draft.fields.get(key), dict) and "value" in draft.fields[key]
+                     for key in ("category", "description", "coordinates", "observation_time")):
+                # Repair the old adapter's persisted shape on fetch, without replacing
+                # the report ID, destination, submission state, or already-flat edits.
+                from .integration import flatten_report_fields
+                draft.fields = flatten_report_fields(draft.fields)
             return {"report_id": draft.id, "fields": draft.fields, "destination": draft.destination, "submission_status": draft.submission_status}
 
     return app

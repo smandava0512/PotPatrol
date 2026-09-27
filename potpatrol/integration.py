@@ -10,6 +10,19 @@ def analyze(video_path: str, output_dir: str) -> str:
     return str(Path(output_dir) / "analysis.json")
 
 
+def flatten_report_fields(fields: dict) -> dict:
+    """Keep the app's scalar v1 fields while retaining the worker's provenance."""
+    coords = fields["coordinates"]["value"] or {}
+    return {
+        "category": fields["category"]["value"],
+        "description": fields["description"]["value"],
+        "latitude": coords.get("lat"),
+        "longitude": coords.get("lon"),
+        "observation_time": fields["observation_time"],
+        "provenance": fields,
+    }
+
+
 def draft_report(context: dict) -> dict:
     from potpatrol_vision.report import draft_report as vision_draft
 
@@ -24,8 +37,8 @@ def draft_report(context: dict) -> dict:
     status = destination["destination_status"]
     # A candidate link is not a verified destination; review comes first.
     return {
-        "fields": {key: value for key, value in report.items() if key not in
-                   ("report_schema_version", "event_id", "submission_status", "submission_note")},
+        "fields": flatten_report_fields({key: value for key, value in report.items() if key not in
+                   ("report_schema_version", "event_id", "submission_status", "submission_note")}),
         "destination": {"status": status,
                         "url": destination["destination_url"] if status == "verified" else None,
                         "candidates": destination["candidates"],
