@@ -76,6 +76,7 @@ final class AppContractTests: XCTestCase {
     }
     func testSavedVideoRequiresExplicitApprovalForTheSelectedServer() throws {
         var drive = SavedDrive()
+        drive.state = .saved
         let first = URL(string: "https://api.potpatrol.miami")!
         let other = URL(string: "https://other.example")!
         XCTAssertFalse(drive.mayUpload(to: first))
