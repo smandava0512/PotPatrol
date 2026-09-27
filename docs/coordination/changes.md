@@ -50,3 +50,11 @@ Dev 1 acknowledges changes #1–#5 as consumer compatibility. iOS changes are on
 - #5: acknowledge optional validation/validator/ai_check as additive advisory metadata; unknown fields decode without breaking the app. iOS does not enable Gemini, approve sending footage externally, or present its opinion as user confirmation. Dev 2's data-sharing approval and persistence/adapter work remain pending.
 
 Real-model app acceptance is still pending: public api.potpatrol.miami health is OK, but a valid UUID drive_id/private device credential and a Mac/iPhone run are required. No real detected pothole has been confirmed in the app yet. Full-video sharing is now opt-in; text and available evidence are shared by default.
+
+### Developer 2 compatibility follow-up
+
+- The backend adapter restores plain category/description strings and numeric/null latitude/longitude for the iOS v1 contract. Observation time stays structured; original worker field provenance is retained under `fields.provenance`. Old wrapped server drafts are repaired on re-fetch with the same ID, destination and submission status. The phone's Refresh draft action is still required for locally cached data.
+- Change #5 is acknowledged as an optional/advisory interface only. **Sending evidence JPEGs to Google is not approved.** AWS explicitly keeps `POTPATROL_VALIDATOR=off`. Event validation is not yet persisted through the backend hazard model, so `ai_check` is not an end-to-end app feature.
+- Validator configuration now fails closed: explicit disablement skips dotenv loading, failed dotenv loading skips the optional check, and invalid/negative image limits send no images. Offline regression tests cover these paths; no provider calls were made.
+- Change #6 is compatible with the backend's bounded event ingestion; the latest full suite includes the simultaneous-pothole and evaluation-mode regressions. Fixture outputs remain synthetic, not real-video acceptance.
+- Verified existing HTTPS fixture drive: `f1dda379-bf7c-47b1-a238-437ebcd74f61` (HTTP 200, complete, two synthetic hazards), accessible with its existing privately provisioned demo credential. New drives must use the UUID returned by POST /v1/drives, not this ID as a constant. Credentials never belong in this document.

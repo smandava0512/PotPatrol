@@ -13,6 +13,8 @@ x-app: &app
     POTPATROL_STORAGE_DIR: /data/media
     POTPATROL_ANALYZER: potpatrol.integration:analyze
     POTPATROL_REPORTER: potpatrol.integration:draft_report
+    # Evidence sharing has not been approved; ignore accidental .env opt-ins.
+    POTPATROL_VALIDATOR: "off"
   volumes:
     - potpatrol_data:/data
   restart: unless-stopped
