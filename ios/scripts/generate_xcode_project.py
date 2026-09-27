@@ -60,6 +60,12 @@ def source_group(folder):
 
 app_group, app_sources = source_group("NativeApp")
 tests_group, tests_sources = source_group("UITests")
+assets_ref = add("NativeApp/Assets.xcassets", "PBXFileReference", lastKnownFileType="folder.assetcatalog",
+                 path="Assets.xcassets", sourceTree="<group>")
+objects[app_group]["children"].append(assets_ref)
+app_resources = add("app-resources", "PBXResourcesBuildPhase", buildActionMask="2147483647",
+                    files=[add("app-icon-assets", "PBXBuildFile", fileRef=assets_ref)],
+                    runOnlyForDeploymentPostprocessing="0")
 app_product = add("app-product", "PBXFileReference", explicitFileType="wrapper.application",
                   path="PotPatrol.app", sourceTree="BUILT_PRODUCTS_DIR")
 tests_product = add("tests-product", "PBXFileReference", explicitFileType="wrapper.cfbundle",
@@ -79,6 +85,7 @@ tests_frameworks = add("tests-frameworks", "PBXFrameworksBuildPhase", buildActio
 common = dict(SWIFT_VERSION="5.0", IPHONEOS_DEPLOYMENT_TARGET="17.0", SDKROOT="iphoneos",
               TARGETED_DEVICE_FAMILY="1", CODE_SIGN_STYLE="Automatic", CLANG_ENABLE_MODULES="YES")
 app_settings = dict(common, PRODUCT_NAME="PotPatrol", PRODUCT_BUNDLE_IDENTIFIER="com.potpatrol.app",
+                    ASSETCATALOG_COMPILER_APPICON_NAME="AppIcon",
                     GENERATE_INFOPLIST_FILE="NO", SUPPORTED_PLATFORMS="iphoneos iphonesimulator",
                     LD_RUNPATH_SEARCH_PATHS=["$(inherited)", "@executable_path/Frameworks"])
 test_settings = dict(common, PRODUCT_NAME="$(TARGET_NAME)", PRODUCT_BUNDLE_IDENTIFIER="com.potpatrol.app.uitests",
@@ -86,7 +93,7 @@ test_settings = dict(common, PRODUCT_NAME="$(TARGET_NAME)", PRODUCT_BUNDLE_IDENT
                      LD_RUNPATH_SEARCH_PATHS=["$(inherited)", "@executable_path/Frameworks", "@loader_path/Frameworks"])
 app = add("app", "PBXNativeTarget", name="PotPatrol", productName="PotPatrol", productReference=app_product,
           productType="com.apple.product-type.application", buildConfigurationList=configurations("app", app_settings),
-          buildPhases=[app_sources, app_frameworks], buildRules=[], dependencies=[], packageProductDependencies=dependencies)
+          buildPhases=[app_sources, app_frameworks, app_resources], buildRules=[], dependencies=[], packageProductDependencies=dependencies)
 proxy = add("tests-proxy", "PBXContainerItemProxy", containerPortal=ident("project"), proxyType="1",
             remoteGlobalIDString=app, remoteInfo="PotPatrol")
 target_dep = add("tests-dependency", "PBXTargetDependency", target=app, targetProxy=proxy)
