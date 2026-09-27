@@ -1,16 +1,7 @@
 import SwiftUI
-import UIKit
-
-final class PotPatrolAppDelegate: NSObject, UIApplicationDelegate {
-    func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String, completionHandler: @escaping () -> Void) {
-        guard identifier == BackgroundVideoUploader.identifier else { completionHandler(); return }
-        AppState.shared.videoUploader.attachBackgroundEvents(completion: completionHandler)
-    }
-}
 
 @main
 struct PotPatrolApp: App {
-    @UIApplicationDelegateAdaptor(PotPatrolAppDelegate.self) private var delegate
     @StateObject private var state = AppState.shared
     @Environment(\.scenePhase) private var scenePhase
     var body: some Scene {

@@ -16,7 +16,7 @@ Tokens, real clips, and signing credentials do not belong in Git. Clips are igno
 
 ## First Mac step
 
-Use the [first-time Mac setup guide](../docs/ios-first-mac-setup.md) for Xcode installation, Apple Account/signing and iPhone Developer Mode. Clone this branch; open `ios/PotPatrol.xcodeproj`. Select **PotPatrol**, choose an iPhone Simulator, then Run. No new project or third-party generator is needed.
+Use the [first-time Mac setup guide](../docs/ios-first-mac-setup.md) for Xcode installation, Apple Account/signing and iPhone Developer Mode. Clone `main` after PR #3 merges; open `ios/PotPatrol.xcodeproj`. Select **PotPatrol**, choose an iPhone Simulator, then Run. No new project or third-party generator is needed.
 
 Tap **Sample drive → Stop and save**. The labeled fixture moves through upload/processing to a pothole. Open it, review evidence and the approximate map, then edit/save its report. Its unverified destination keeps the portal disabled. **More sample scenarios** covers no GPS, zero hazards, processing failure, unsupported destination and destination candidates. Drives and edits persist through relaunch.
 
@@ -36,7 +36,7 @@ Run and tap **Prepare camera and location** while parked. Denied GPS is supporte
 
 Enter Developer 2's URL and device token in **Connection settings**. The token goes into Keychain, never drive files. Use HTTPS for the hosted demo. Debug builds can explicitly allow local HTTP; Release enforces HTTPS. On the phone, use the server computer's LAN IP on the same Wi-Fi, not `127.0.0.1`. Developer 2 must bind its local server to the LAN interface.
 
-Flow: create → upload-init → authenticated raw MP4 PUT → GPS batches up to 2,000 → complete `{}` → poll. GPS uses `{"samples":[...]}`, omits v1-forbidden `heading_deg`, and supports an empty track. Private evidence is authenticated and cached. See [compatibility](../docs/ios-backend-handoff.md).
+After reviewing the saved recording, choose **Send video and GPS for analysis**. The approval is saved for that server only. Flow: create → upload-init → authenticated raw MP4 PUT → GPS batches up to 2,000 → complete with captured `video_started_at` when available (otherwise `{}`) → poll. GPS uses `{"samples":[...]}`, omits v1-forbidden `heading_deg`, and supports an empty track. Private evidence is authenticated and cached. See [compatibility](../docs/ios-backend-handoff.md).
 
 ## Capture and recovery
 
@@ -44,7 +44,7 @@ MP4 source time and GPS offsets start at the first successfully appended frame. 
 
 Each drive's Application Support folder owns `drive.mp4`, `locations.json`, `capture-origin.json`, and atomic `drive.json`. First-frame UTC is written immediately after frame append, then stored as `videoStartedAt` on finalization. Recovery restores it for readable interrupted clips. Abrupt termination may leave an unreadable MP4; files are retained and the UI reports this. Wall-clock changes still need device verification.
 
-Capture stops below the backend's ten-minute/100-MiB limits. File-backed background URLSession uses a stable identifier. Server ID, transfer acknowledgment, GPS checkpoints, status, errors, private evidence and reports survive reopening. Transient requests retry up to three times; manual retry renews expired tickets. Background transfers can survive system termination; user force-quit cancels them until reopening/retry. Recovered interrupted recordings require review before upload.
+Capture stops below the backend's ten-minute/100-MiB limits. The file-backed upload uses a **foreground** URLSession: background sessions automatically follow redirects without asking the delegate, which could send a private MP4 to another host. The app refuses all upload redirects. A transfer may stop when the app is suspended or terminated; the saved file and approved server survive, so reopen and retry when foregrounded. Server ID, confirmed upload receipt, GPS checkpoints, status, errors, private evidence and reports survive reopening. Transient requests retry up to three times; manual retry renews expired tickets. Recovered interrupted recordings require review before upload.
 
 Draft edits stay local because v1 has no update endpoint. **Refresh draft** explicitly re-fetches the server package, replacing local edits after confirmation and preserving earlier receipts in history. Developer 2's adapter owns flattening structured category/description/coordinates; it must also repair or flatten previously persisted server drafts.
 

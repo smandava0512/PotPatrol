@@ -24,10 +24,10 @@ Follow the [first-time Mac setup](ios-first-mac-setup.md) to install compatible 
 
 1. Enter Developer 2's HTTPS URL/token. Confirm Developer 3's real analyzer is active.
 2. Grant permissions while parked; capture a short passenger/parked drive. Review playable video and GPS count.
-3. Upload, inspect real processing states, reopen and confirm the same saved drive resumes.
+3. Review the saved clip, explicitly choose **Send video and GPS for analysis**, inspect processing states, reopen and confirm the same saved drive resumes. An unsent drive needs fresh approval if the server changes; a drive already created on one server must finish there.
 4. Review server pothole/private evidence/offset/optional confidence and severity/approximate location/editable report/destination. Compare timing with original media; confirm UTC survives reopening.
 5. Test a clean clip for zero hazards and a GPS-denied clip for a visible hazard without a map.
-6. Test network retry, failed processing, unsupported destination and retained media. Explicit force-quit cancels background transfers; reopen/retry.
+6. Test network retry, failed processing, unsupported destination and retained media. Foreground file uploads stop on suspension/termination; reopen and retry from the saved file. Redirects must not forward footage elsewhere.
 7. Review candidate names, URLs, official sources and reason; choose the road owner yourself before opening its page. A candidate choice stays `needs_review`; handoff says Portal opened. Attach shared evidence manually. Full video is off by default. Confirmation requires an actual receipt.
 8. Refresh a cached draft after Developer 2's flattening fix. Check the latest category/description/location, coordinate edit and restoration, and receipt history.
 
@@ -40,7 +40,7 @@ Sample scenarios and server results with `analysis_mode:"fixture"` are labeled *
 | Package / iPhone SDK compilation | Passed [macOS CI 36293356119](https://github.com/smandava0512/PotPatrol/actions/runs/36293356119); 33 unit checks passed (live integration skipped in the ordinary unit run) |
 | HTTP MP4 / GPS retries / private evidence / report / no GPS | Passed CI 36293356119 in the separate live HTTP test with synthetic worker |
 | Native Release / simulator UI | Passed CI 36293356119; all 6 UI scenarios passed |
-| Mac / Xcode / installed iOS | iPhone available; Mac can be available but Xcode/signing are not configured; exact OS versions pending |
+| Mac / Xcode / installed iOS | iPhone iOS 26.6.2; borrowed M2 MacBook Air Ventura 13.5 needs owner-approved macOS upgrade or another compatible Mac before Xcode 27 and signing |
 | Real pothole / clean clip | Pending capture |
 | Physical UTC/GPS timing / live real analyzer | Pending Mac/phone/server |
 | Report refresh / candidates / coordinate restoration / opt-in video | Passed CI 36293356119, including refresh after relaunch, candidate handoff without confirmation, and video off by default |

@@ -146,7 +146,7 @@ final class AppState: ObservableObject {
             }
             await reload()
             path = [.drive(id)]
-            Task { await upload(id) }
+            if drive.isDemo { Task { await upload(id) } }
         } catch {
             try? await repository.update(id) { $0.state = .failed; $0.lastError = error.localizedDescription; $0.interrupted = true }
             notice = error.localizedDescription
@@ -175,8 +175,12 @@ final class AppState: ObservableObject {
     }
     func resumeSavedDrives() async {
         for drive in drives where drive.state == .saved || drive.state == .uploading {
-            // Interrupted recoveries require an explicit review/retry rather than automatic upload.
-            if !drive.interrupted { Task { await upload(drive.id) } }
+            // Resume only uploads previously approved for this exact server.
+            if drive.isDemo { Task { await upload(drive.id) } }
+            else if !drive.interrupted, let client = try? client(for: drive),
+                    drive.mayUpload(to: client.connection.baseURL) {
+                Task { await upload(drive.id) }
+            }
         }
         for drive in drives where drive.state == .queued || drive.state == .processing {
             await refresh(drive.id)
@@ -194,6 +198,15 @@ final class AppState: ObservableObject {
         }
         throw PotPatrolAPIError.invalidResponse
     }
+    func approveUpload(_ id: UUID) async {
+        guard let saved = drive(id), saved.state == .saved, !saved.isDemo else { return }
+        do {
+            let client = try client(for: saved)
+            try await repository.update(id) { $0.approvedUploadBaseURL = client.connection.baseURL.absoluteString }
+            await reload()
+            await upload(id)
+        } catch { notice = error.localizedDescription }
+    }
     func upload(_ id: UUID) async {
         guard !busy.contains(id), let saved = drive(id), saved.state != .recording else { return }
         busy.insert(id)
@@ -208,6 +221,9 @@ final class AppState: ObservableObject {
                 return
             }
             let client = try client(for: saved)
+            guard saved.mayUpload(to: client.connection.baseURL) else {
+                throw PotPatrolAPIError.configuration("Review the saved clip and choose Send video and GPS for analysis before uploading.")
+            }
             if let serverID = saved.serverID {
                 let snapshot = try await withRetry { try await client.drive(driveID: serverID) }
                 if !["created", "uploading"].contains(snapshot.status) {
@@ -242,7 +258,7 @@ final class AppState: ObservableObject {
                 _ = try await withRetry { try await client.sendLocations(driveID: serverID, samples: batch) }
                 drive = try await repository.update(id) { $0.nextGPSIndex = end }
             }
-            _ = try await withRetry { try await client.completeDrive(driveID: serverID) }
+            _ = try await withRetry { try await client.completeDrive(driveID: serverID, videoStartedAt: drive.videoStartedAt) }
             try await repository.update(id) { $0.state = .queued; $0.completionAcknowledged = true; $0.lastError = nil }
             await reload()
         } catch {

@@ -45,8 +45,9 @@ struct DriveStatusView: View {
                     }
                 } else if drive.state == .saved {
                     Section("Saved on this iPhone") {
-                        Text("Ready to upload when the analysis server is connected.")
-                        Button("Upload drive") { Task { await state.upload(id) } }
+                        Text("Review the saved video first. Sending transmits the MP4 and any GPS samples to the configured analysis server; until then, they stay on this iPhone.")
+                        Button("Send video and GPS for analysis") { Task { await state.approveUpload(id) } }
+                            .accessibilityIdentifier("approveDriveUpload")
                     }
                 } else {
                     Section {

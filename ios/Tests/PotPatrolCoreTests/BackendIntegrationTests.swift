@@ -10,6 +10,7 @@ final class BackendIntegrationTests: XCTestCase {
             throw XCTSkip("Requires the contract backend fixture process")
         }
         let client = PotPatrolAPIClient(connection: try APIConnection(baseURL: URL(string: base)!, deviceToken: token, allowDevelopmentHTTP: true))
+        let firstFrame = Date(timeIntervalSince1970: 1_750_000_000) // Synthetic clock for this fixture only.
         for withGPS in [true, false] {
             let identity = try await client.createDrive()
             let ticket = try await client.initializeUpload(driveID: identity.driveID)
@@ -26,8 +27,8 @@ final class BackendIntegrationTests: XCTestCase {
             XCTAssertEqual(accepted, samples.count)
             let repeated = try await client.sendLocations(driveID: identity.driveID, samples: samples)
             XCTAssertEqual(repeated, 0)
-            _ = try await client.completeDrive(driveID: identity.driveID)
-            _ = try await client.completeDrive(driveID: identity.driveID)
+            _ = try await client.completeDrive(driveID: identity.driveID, videoStartedAt: firstFrame)
+            _ = try await client.completeDrive(driveID: identity.driveID, videoStartedAt: firstFrame)
             var snapshot = try await client.drive(driveID: identity.driveID)
             for _ in 0..<40 where !snapshot.isFinished {
                 try await Task.sleep(for: .milliseconds(500))
@@ -47,6 +48,13 @@ final class BackendIntegrationTests: XCTestCase {
             XCTAssertEqual(report.fields["longitude"]?.number, hazard.location?.longitude)
             XCTAssertEqual(report.destination.status, "needs_review")
             XCTAssertEqual(report.destination.candidates?.count, withGPS ? 3 : 0)
+            guard case .object(let observation)? = report.fields["observation_time"],
+                  let timestamp = observation["value"]?.text,
+                  let observedAt = PotPatrolJSON.date(timestamp) else {
+                XCTFail("Server draft did not retain the captured first-frame UTC")
+                continue
+            }
+            XCTAssertEqual(observedAt, firstFrame.addingTimeInterval(Double(hazard.videoOffsetMilliseconds) / 1_000))
             XCTAssertNil(EditableReport(package: report).portalURL)
         }
     }

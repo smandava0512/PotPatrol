@@ -26,6 +26,8 @@ public struct SavedDrive: Codable, Identifiable, Sendable {
     public var durationMilliseconds: Int64?
     public var serverID: UUID?
     public var serverBaseURL: String?
+    /// Nil for older saved drives: they cannot silently upload after an app upgrade.
+    public var approvedUploadBaseURL: String?
     public var videoUploaded = false
     public var nextGPSIndex = 0
     public var completionAcknowledged = false
@@ -43,6 +45,9 @@ public struct SavedDrive: Codable, Identifiable, Sendable {
     }
     public var isDemo: Bool { demoScenario != nil }
     public var usesFixtureAnalysis: Bool { isDemo || snapshot?.analysisMode == "fixture" }
+    public func mayUpload(to baseURL: URL) -> Bool {
+        !isDemo && approvedUploadBaseURL == baseURL.absoluteString
+    }
 }
 
 public struct DriveLibrary: Sendable {

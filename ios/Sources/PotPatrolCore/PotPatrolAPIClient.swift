@@ -53,8 +53,19 @@ public struct APIConnection: Sendable {
 private final class APIRedirectDelegate: NSObject, URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
                     newRequest request: URLRequest, completionHandler: @escaping @Sendable (URLRequest?) -> Void) {
-        completionHandler(nil)
+        completionHandler(UploadSessionSafety.redirect(request))
     }
+}
+
+/// Background URLSession tasks follow redirects without asking the delegate. A private
+/// recording must use a default session so a redirect cannot forward it elsewhere.
+public enum UploadSessionSafety {
+    public static func configuration() -> URLSessionConfiguration {
+        let configuration = URLSessionConfiguration.default
+        configuration.waitsForConnectivity = true
+        return configuration
+    }
+    public static func redirect(_ request: URLRequest) -> URLRequest? { nil }
 }
 
 public struct PotPatrolAPIClient {
@@ -140,9 +151,14 @@ public struct PotPatrolAPIClient {
         let body = try PotPatrolJSON.encoder().encode(Batch(samples: Self.canonicalSamples(samples).map { Point(sample: $0) }))
         return try await decode(Receipt.self, path: "v1/drives/\(driveID.uuidString)/locations", method: "POST", body: body).accepted
     }
-    public func completeDrive(driveID: UUID) async throws -> DriveIdentity {
-        // video_started_at/duration are proposals, not part of the current authoritative v1 body.
-        try await decode(DriveIdentity.self, path: "v1/drives/\(driveID.uuidString)/complete", method: "POST", body: Data("{}".utf8))
+    public func completeDrive(driveID: UUID, videoStartedAt: Date? = nil) async throws -> DriveIdentity {
+        struct Completion: Encodable {
+            let videoStartedAt: Date
+            enum CodingKeys: String, CodingKey { case videoStartedAt = "video_started_at" }
+        }
+        let body = try videoStartedAt.map { try PotPatrolJSON.encoder().encode(Completion(videoStartedAt: $0)) }
+            ?? Data("{}".utf8)
+        return try await decode(DriveIdentity.self, path: "v1/drives/\(driveID.uuidString)/complete", method: "POST", body: body)
     }
     public func retryAnalysis(driveID: UUID) async throws -> DriveIdentity {
         try await decode(DriveIdentity.self, path: "v1/drives/\(driveID.uuidString)/retry", method: "POST", body: Data("{}".utf8))
