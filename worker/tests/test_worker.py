@@ -168,6 +168,49 @@ def test_pipeline_negative_clip_returns_empty_events(tmp_path):
     assert m["events"] == [] and m["mode"] == "model"
 
 
+class FakeValidator:
+    def __init__(self, result):
+        self.result, self.calls = result, []
+
+    def describe(self):
+        return {"provider": "fake", "model": "fake-1"}
+
+    def validate(self, image_path, category):
+        self.calls.append(image_path)
+        assert os.path.isfile(image_path) and image_path.endswith("-raw.jpg")
+        return self.result
+
+
+def test_validator_adds_advisory_field_only(tmp_path):
+    p = str(tmp_path / "clip.mp4")
+    _write_vfr_video(p, [33] * 150)
+    out = str(tmp_path / "out")
+    v = FakeValidator({"is_hazard": False, "confidence": 0.9, "rationale": "manhole cover", "provider": "fake"})
+    m = analyze(p, out, detector=FakeDetector([(60, 80)]), validator=v)
+    validate_manifest(m, out)
+    (ev,) = m["events"]
+    assert ev["validation"]["is_hazard"] is False and ev["status"] == "confirmed"  # advisory, never drops
+    assert m["validator"] == {"provider": "fake", "model": "fake-1"} and len(v.calls) == 1
+    r = draft_report(ev, ev["evidence_raw_path"], None, None, None, None)
+    assert r["ai_check"]["source"] == "validator" and "manhole" not in r["description"]["value"]
+
+
+def test_validator_failure_falls_back(tmp_path):
+    p = str(tmp_path / "clip.mp4")
+    _write_vfr_video(p, [33] * 150)
+    m = analyze(p, str(tmp_path / "out"), detector=FakeDetector([(60, 80)]), validator=FakeValidator(None))
+    assert "validation" not in m["events"][0]
+    assert draft_report(m["events"][0], None, None, None, None, None)["ai_check"]["source"] == "unassessed"
+
+
+def test_validator_off_by_default(monkeypatch):
+    from potpatrol_vision.validators import NullValidator, get_validator
+
+    monkeypatch.delenv("POTPATROL_VALIDATOR", raising=False)
+    monkeypatch.delenv("ROADWATCH_VALIDATOR", raising=False)
+    assert isinstance(get_validator(), NullValidator)
+
+
 def test_generic_coco_model_rejected(monkeypatch, tmp_path):
     pytest.importorskip("ultralytics")
     coco = os.path.expanduser("~/weights/yolo26n.pt")

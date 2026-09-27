@@ -24,3 +24,6 @@ output/
 *.mov
 !fixtures/*.mp4
 !worker/potpatrol_vision/fixtures/**
+.env
+.env.*
+!.env.example

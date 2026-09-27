@@ -83,6 +83,11 @@ The backend should mark the job failed and must not create an empty-hazard drive
 | `evidence_path` | relative path | JPEG under `output_dir`, with the detection box drawn. Always exists when the manifest is written. |
 | `evidence_raw_path` | relative path | Same frame, without annotations (for reports / optional validation). |
 | `notes` | string | Factual detector-derived text only. No claims about lane, size, depth, ownership or risk. |
+| `validation` | object, **optional** | Present only when the optional image check ran and succeeded: `{is_hazard: bool, confidence: [0,1], rationale: str, provider: str, model: str}`. Advisory only: it never removes an event or changes `status`. Absent = not checked. |
+
+Top-level `validator` is `null` when the optional check is off, or `{provider, model}` when it is on. The check runs only in
+model mode, only on the `POTPATROL_VALIDATE_MAX` (default 5) highest-confidence events, and only on `evidence_raw_path`.
+It is enabled with `POTPATROL_VALIDATOR=gemini` + `GEMINI_API_KEY`. Any provider error means no `validation` field; the job never fails because of it.
 
 Bounds: at most **25** events per clip (highest scores kept). Events are sorted by `video_offset_ms`.
 
@@ -107,9 +112,10 @@ report = draft_report(hazard, evidence_path, lat, lon, accuracy_m, observed_at)
 - Missing `observed_at`: `observation_time.value = null` and the time is left out of the description (never the string "None").
 
 It returns editable structured fields. Each field is `{"value": ..., "source": ...}`, where `source` is one of
-`detector | gps | device_clock | reverse_geocode | registry | template | user | unassessed`.
+`detector | gps | device_clock | reverse_geocode | registry | template | user | validator | unassessed`.
 See `examples/report.example.json`.
 
+- `ai_check` (optional pass-through of the event's `validation`, source `validator`, else `null` / `unassessed`). It is advisory and never changes `description`.
 - `category`, `observation_time`, `location_description`, `description`, `severity` (always `null` in v1, with basis
   `"not assessed from a single camera frame"`), `evidence_path`.
 - `destination`: `{ jurisdiction_candidate, destination_url, destination_status, candidates[], reason, sources[] }`

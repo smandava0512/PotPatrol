@@ -17,6 +17,7 @@ import numpy as np
 from .events import MergeParams, EventMerger, Track
 from .frames import VideoInfo, sample_frames
 from .schema import SCHEMA_VERSION, AnalysisError, InvalidVideoError, env, validate_manifest
+from .validators import get_validator, max_validations
 
 DEFAULT_SAMPLE_FPS = 4.0
 DEFAULT_CONF = 0.35
@@ -80,6 +81,14 @@ def _event_dict(idx: int, tr: Track, output_dir: str, min_hits: int) -> dict:
     }
 
 
+def _validate_events(events: list[dict], output_dir: str, validator) -> None:
+    """Attach an optional `validation` to the highest-confidence events. Never drops or re-labels events."""
+    for ev in sorted(events, key=lambda e: e["confidence"], reverse=True)[:max_validations()]:
+        result = validator.validate(os.path.join(output_dir, ev["evidence_raw_path"]), ev["category"])
+        if result is not None:
+            ev["validation"] = result
+
+
 def _write_manifest(output_dir: str, manifest: dict) -> dict:
     validate_manifest(manifest, output_dir)
     tmp = os.path.join(output_dir, "analysis.json.tmp")
@@ -105,7 +114,8 @@ def analyze_fixture(output_dir: str) -> dict:
 
 def analyze(video_path: str, output_dir: str, *, fixture: bool | None = None,
             sample_fps: float = DEFAULT_SAMPLE_FPS, conf: float = DEFAULT_CONF,
-            device: str | None = None, params: MergeParams | None = None, detector=None) -> dict:
+            device: str | None = None, params: MergeParams | None = None, detector=None,
+            validator=None) -> dict:
     """Analyze one drive clip. Raises InvalidVideoError / ModelError / AnalysisError on failure."""
     if fixture is None:
         fixture = env("ANALYSIS_MODE").lower() == "fixture"
@@ -146,6 +156,9 @@ def analyze(video_path: str, output_dir: str, *, fixture: bool | None = None,
 
     tracks = merger.finish()
     events = [_event_dict(i + 1, tr, output_dir, params.min_hits) for i, tr in enumerate(tracks)]
+    validator = validator if validator is not None else get_validator()
+    if events and validator.describe():
+        _validate_events(events, output_dir, validator)
     manifest = {
         "schema_version": SCHEMA_VERSION,
         "mode": "model",
@@ -161,6 +174,7 @@ def analyze(video_path: str, output_dir: str, *, fixture: bool | None = None,
         },
         "model": detector.describe(),
         "merge_params": asdict(params),
+        "validator": validator.describe(),
         "filtered_detections": merger.dropped_filtered,
         "processing_ms": int((time.perf_counter() - t0) * 1000),
         "events": events,
