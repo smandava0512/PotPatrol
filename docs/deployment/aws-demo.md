@@ -20,8 +20,7 @@ The EC2 instance, disk and public IPv4 address can incur charges while running.
   The older checkout and Caddy bind mount remain at `/home/ec2-user/potpatrol-backend`;
   do not use that stale source directory to rebuild the app. Compose project/volumes
   are still `potpatrol-aws`; no database or media was replaced.
-- On that host, create `.env` (mode `0600`) with an **explicit**
-  `POTPATROL_ANALYSIS_MODE=fixture` for the currently running synthetic transport demo. **Do not apply this staged Compose template to the live host yet**: it overrides mode to `model` with `gemini_required` and requires `GEMINI_API_KEY` in the private `.env` (Compose `${GEMINI_API_KEY:?…}` refuses missing key; worker also rejects missing SDK/key before claiming jobs). Deploy only after review of real positive/negative clips, API cost and image-sharing scope. The selected frame JPEGs (up to 24) and candidate evidence JPEGs (up to 12) leave the host for Google; the video and GPS do not. Use
+- On that host, keep `.env` (mode `0600`) for device tokens and general settings; the currently running release explicitly selects `POTPATROL_ANALYSIS_MODE=fixture`. **The staged Compose template is not yet live**: it overrides mode to `model` with `gemini_required`. Put `GEMINI_API_KEY=<private key>` in a separate, ignored, mode-`0600` `gemini.env` beside Compose, **not** in `.env` or a Compose `environment:` value. Only the worker loads `gemini.env`; it refuses to start without the key/SDK and never falls back to fixture output. Review the real-clip and cost results before deploying. Selected road-frame JPEGs (up to 24) and candidate evidence JPEGs (up to 12) leave the host for Google; videos and GPS do not. Use
   `POTPATROL_DEVICE_TOKENS` with one distinct, random credential per participating
   device, delivered privately. The legacy `POTPATROL_DEVICE_TOKEN` may be used
   only for a genuinely single-device demo; remove it when assigning separate
@@ -30,7 +29,7 @@ The EC2 instance, disk and public IPv4 address can incur charges while running.
 - Create `db.env` (mode `0600`) with `POTPATROL_DATABASE_URL` using the
   `postgresql+psycopg://` driver and TLS (`sslmode=require` or stronger). Compose
   reads this file as **raw** to preserve special characters in the password.
-  Both secret files are ignored by Git and the Docker build context.
+  All three secret files (`.env`, `db.env`, `gemini.env`) must be ignored by Git and the Docker build context. Never print the expanded Compose config; use `config --quiet`.
 - From the selected release directory, run `sudo docker compose -f compose.aws.yaml config --quiet`,
   preserve the previous image tag, then `sudo docker compose -f compose.aws.yaml build api`.
   Stop/drain the old worker before replacing lease logic. Run
@@ -43,13 +42,15 @@ The EC2 instance, disk and public IPv4 address can incur charges while running.
   MP4 PUT, `video_started_at`, worker completion, null GPS, `analysis_mode:fixture`,
   private evidence (401 without a token), and a review-only report destination.
 
-The image includes CPU-only PyTorch and Param's pinned pothole model. Loading the
-model on the instance succeeded, **but the running worker remains in fixture mode**.
-Do not switch to `POTPATROL_ANALYSIS_MODE=model` or claim real detection acceptance
-until a genuine pothole clip and clean clip have been evaluated and evidence
-reviewed. Camera-app originals need private MP4 conversion for the upload API and
-must not be assigned an unverified first-frame UTC/GPS. Final acceptance also
-requires Shravya's iPhone test over this HTTPS endpoint.
+The image includes CPU-only PyTorch and Param's pinned pothole model. Isolated
+analysis of the supplied pothole-labelled and clear Camera-app clips found no
+events on the clear clip, but YOLO identified curbs/parking stops instead of
+convincing potholes on the labelled clip. Gemini-assisted accuracy **has not
+been evaluated with the actual key**, and the live worker remains in fixture mode.
+Do not claim accurate real detection merely because a model loaded or Gemini ran;
+review both clips' actual Gemini evidence first. Camera-app originals need private
+MP4 conversion for the upload API and must not be assigned an unverified first-frame
+UTC/GPS. Final acceptance also requires Shravya's iPhone test over this endpoint.
 
 Replaced MP4s now use distinct private keys; the service does not yet garbage-collect
 unreferenced objects. Budget for cleanup and backup before long-term use.

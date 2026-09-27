@@ -16,7 +16,6 @@ x-app: &app
     POTPATROL_ANALYSIS_MODE: model
     POTPATROL_VISION_MODE: gemini_required
     POTPATROL_VALIDATOR: gemini
-    GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in private .env before starting this stack}
   volumes:
     - potpatrol_data:/data
   restart: unless-stopped
@@ -37,6 +36,13 @@ services:
 
   worker:
     <<: *app
+    # Gemini's private credential is never injected into the API or Caddy.
+    env_file:
+      - .env
+      - path: db.env
+        format: raw
+      - path: gemini.env
+        format: raw
     command: ["python", "-m", "potpatrol.worker", "--loop"]
 
   caddy:

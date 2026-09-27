@@ -9,6 +9,7 @@ __pycache__
 .env
 .env.*
 db.env
+gemini.env
 *.pem
 *.key
 *.p8
