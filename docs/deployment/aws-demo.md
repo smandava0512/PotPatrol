@@ -8,19 +8,19 @@ The unrelated workshop CodeEditor instance and SageMaker bucket are not part of
 this deployment.
 
 The database is the **existing** PotPatrol Tiger Cloud PostgreSQL service. Alembic
-revision `c8e0a12451d6` has been applied and `jobs.claim_token` independently checked. Videos and
+revision `ba902f73c819` has been applied; deletion receipts and drive/hazard Gemini provenance columns were independently checked. Videos and
 JPEG evidence use an authenticated API and a private Docker volume on the
 instance's encrypted EC2 disk; there is **no S3 backup or multi-host durability**.
 The EC2 instance, disk and public IPv4 address can incur charges while running.
 
 ## Configuration and runbook
 
-- Current API/worker release: `/home/ec2-user/potpatrol-releases/03fe24f`, from
-  `dev3-vision` commit `03fe24f3a0b681834dd02e7d4529dd06860abdf5` (PR #2 remains open).
+- Current API/worker release: `/home/ec2-user/potpatrol-releases/f2a0cb6`, from
+  `main` commit `f2a0cb614d46fe7c64f2149e60219361092f6acf`.
   The older checkout and Caddy bind mount remain at `/home/ec2-user/potpatrol-backend`;
   do not use that stale source directory to rebuild the app. Compose project/volumes
   are still `potpatrol-aws`; no database or media was replaced.
-- On that host, keep `.env` (mode `0600`) for device tokens and general settings; the currently running release explicitly selects `POTPATROL_ANALYSIS_MODE=fixture`. **The staged Compose template is not yet live**: it overrides mode to `model` with `gemini_required`. Put `GEMINI_API_KEY=<private key>` in a separate, ignored, mode-`0600` `gemini.env` beside Compose, **not** in `.env` or a Compose `environment:` value. Only the worker loads `gemini.env`; it refuses to start without the key/SDK and never falls back to fixture output. Review the real-clip and cost results before deploying. Selected road-frame JPEGs (up to 24) and candidate evidence JPEGs (up to 12) leave the host for Google; videos and GPS do not. Use
+- On that host, keep `.env` (mode `0600`) for device tokens and general settings. Compose overrides the historical fixture setting with `POTPATROL_ANALYSIS_MODE=model` and `POTPATROL_VISION_MODE=gemini_required` in both API and worker. The private Gemini credential was staged through a masked terminal into ignored, mode-`0600` `gemini.env` beside Compose, **not** in `.env` or a Compose `environment:` value. Only the worker loads it; missing key/SDK cannot trigger fixture output. Selected road-frame JPEGs (up to 24) and candidate evidence JPEGs (up to 12) leave the host for Google; videos and GPS do not. Use
   `POTPATROL_DEVICE_TOKENS` with one distinct, random credential per participating
   device, delivered privately. The legacy `POTPATROL_DEVICE_TOKEN` may be used
   only for a genuinely single-device demo; remove it when assigning separate
@@ -38,17 +38,20 @@ The EC2 instance, disk and public IPv4 address can incur charges while running.
   starting new code. Run `sudo docker compose -f compose.aws.yaml up -d --no-build --no-deps --wait api worker`.
   The currently preserved rollback image is `potpatrol-aws:pre-phone-03fe24f`.
 - Verify `https://api.potpatrol.miami/health` **without disabling certificate
-  validation**. The live fixture smoke covers HTTPS upload-init, authenticated
+  validation**. The historical fixture smoke covers HTTPS upload-init, authenticated
   MP4 PUT, `video_started_at`, worker completion, null GPS, `analysis_mode:fixture`,
   private evidence (401 without a token), and a review-only report destination.
 
-The image includes CPU-only PyTorch and Param's pinned pothole model. Isolated
-analysis of the supplied pothole-labelled and clear Camera-app clips found no
-events on the clear clip, but YOLO identified curbs/parking stops instead of
-convincing potholes on the labelled clip. Gemini-assisted accuracy **has not
-been evaluated with the actual key**, and the live worker remains in fixture mode.
-Do not claim accurate real detection merely because a model loaded or Gemini ran;
-review both clips' actual Gemini evidence first. Camera-app originals need private
+The image includes CPU-only PyTorch and Param's pinned pothole model. Real
+Gemini-required analysis of the supplied pothole-labelled and clear Camera-app
+clips completed: 33 review-only findings on the labelled clip and 0 on the
+clear clip. The 33 boxes have **not** been independently confirmed as potholes;
+this count may include duplicates or false positives. Three already-queued phone
+drives subsequently completed through the hosted Gemini worker, with 7, 23, and
+24 scanned frames and 0 hazards each; authenticated public GETs confirmed their
+`model`/`gemini_required`/`gemini-3.8-flash` provenance. Do not equate these
+results with verified detection accuracy or a newly installed phone build.
+Camera-app originals need private
 MP4 conversion for the upload API and must not be assigned an unverified first-frame
 UTC/GPS. Final acceptance also requires Shravya's iPhone test over this endpoint.
 
@@ -57,11 +60,11 @@ unreferenced objects. Budget for cleanup and backup before long-term use.
 
 ## Phone contract verification
 
-Release `03fe24f` passed public trusted-HTTPS upload → GPS → completion → fixture
+Historical release `03fe24f` passed public trusted-HTTPS upload → GPS → completion → fixture
 worker → authenticated JPEG → scalar report draft checks. Re-fetch repairs the
 old wrapped server draft without changing its report ID; phone caches need the
-app's Refresh draft action. Gemini remains off **in the live release**. The staged
-Compose file in this branch requires Gemini, and has not been deployed.
+app's Refresh draft action. The current release requires Gemini, and the three
+new queued drives were verified complete via owner-authenticated public HTTPS GET.
 
 Existing test drive: `f1dda379-bf7c-47b1-a238-437ebcd74f61`.
 New no-GPS fixture: `921da0f1-6bd3-4cd7-aef9-1e2dc599d7a1`.
