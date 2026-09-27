@@ -39,6 +39,7 @@ class Job(Base):
     drive_id: Mapped[str] = mapped_column(ForeignKey("drives.id"), unique=True)
     state: Mapped[str] = mapped_column(String(20), index=True)
     attempts: Mapped[int] = mapped_column(Integer, default=0)
+    claim_token: Mapped[str | None] = mapped_column(String(36))
     lease_until: Mapped[str | None] = mapped_column(String(40))
     started_at: Mapped[str | None] = mapped_column(String(40))
     finished_at: Mapped[str | None] = mapped_column(String(40))

@@ -7,6 +7,7 @@ import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from threading import Event, Thread
 
 from sqlalchemy import or_, select, update
 
@@ -62,21 +63,50 @@ def validate_manifest(manifest, output_dir):
     return checked
 
 
+def renew_claim(config, job_id, claim_token):
+    """Extend only the active attempt; a reclaimed job cannot renew its lease."""
+    now = datetime.now(timezone.utc)
+    with config.Session.begin() as db:
+        renewed = db.execute(update(Job).where(
+            Job.id == job_id, Job.state == "processing", Job.claim_token == claim_token,
+            Job.lease_until > now.isoformat().replace("+00:00", "Z"),
+        ).values(lease_until=(now + timedelta(minutes=30)).isoformat().replace("+00:00", "Z")))
+        return renewed.rowcount == 1
+
+
 def process_once(config):
-    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    lease = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat().replace("+00:00", "Z")
+    now_dt = datetime.now(timezone.utc)
+    now = now_dt.isoformat().replace("+00:00", "Z")
+    lease = (now_dt + timedelta(minutes=30)).isoformat().replace("+00:00", "Z")
+    claim_token = str(uuid.uuid4())
     with config.Session.begin() as db:
         candidate = db.scalar(select(Job).where(or_(Job.state == "pending", (Job.state == "processing") & (Job.lease_until < now))).order_by(Job.id).limit(1))
         if candidate is None:
             return False
-        claimed = db.execute(update(Job).where(Job.id == candidate.id, Job.state == candidate.state, Job.lease_until == candidate.lease_until).values(state="processing", lease_until=lease, started_at=now, attempts=Job.attempts + 1))
+        claimed = db.execute(update(Job).where(Job.id == candidate.id, Job.state == candidate.state, Job.lease_until == candidate.lease_until).values(
+            state="processing", claim_token=claim_token, lease_until=lease, started_at=now,
+            attempts=Job.attempts + 1))
         if not claimed.rowcount:
             return False
+        job_id = candidate.id
         drive_id = candidate.drive_id
         drive = db.get(Drive, drive_id)
         drive.status = "processing"
         drive.stage = "analyzing"
         drive.error = None
+    stop_renewal = Event()
+
+    def heartbeat():
+        while not stop_renewal.wait(60):
+            try:
+                if not renew_claim(config, job_id, claim_token):
+                    return
+            except Exception:
+                # Finalization still checks the claim if renewal fails.
+                return
+
+    renewal = Thread(target=heartbeat, daemon=True)
+    renewal.start()
     try:
         with config.Session() as db:
             drive = db.get(Drive, drive_id)
@@ -96,6 +126,13 @@ def process_once(config):
             evidence_dir = config.storage_dir / "evidence" / drive_id
             evidence_dir.mkdir(parents=True, exist_ok=True)
             with config.Session.begin() as db:
+                final_now = datetime.now(timezone.utc)
+                held = db.execute(update(Job).where(
+                    Job.id == job_id, Job.state == "processing", Job.claim_token == claim_token,
+                    Job.lease_until > final_now.isoformat().replace("+00:00", "Z"),
+                ).values(lease_until=(final_now + timedelta(minutes=30)).isoformat().replace("+00:00", "Z")))
+                if held.rowcount != 1:
+                    return False
                 drive = db.get(Drive, drive_id)
                 if drive.status != "processing":
                     raise ValueError("Job no longer owned by worker")
@@ -124,23 +161,30 @@ def process_once(config):
                     raise ValueError("Worker changed event count on retry; manual review required")
                 drive.status = "complete"
                 drive.stage = "complete"
-                job = db.scalar(select(Job).where(Job.drive_id == drive_id))
+                job = db.get(Job, job_id)
                 job.state = "done"
+                job.claim_token = None
                 job.lease_until = None
                 job.finished_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         return True
     except Exception as exc:
         with config.Session.begin() as db:
+            failed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            held = db.execute(update(Job).where(
+                Job.id == job_id, Job.state == "processing", Job.claim_token == claim_token,
+                Job.lease_until > failed_at,
+            ).values(state="failed", claim_token=None, lease_until=None,
+                     error=str(exc)[:500], finished_at=failed_at))
+            if held.rowcount != 1:
+                return False
             drive = db.get(Drive, drive_id)
-            job = db.scalar(select(Job).where(Job.drive_id == drive_id))
             drive.status = "failed"
             drive.stage = "failed"
             drive.error = str(exc)[:500]
-            job.state = "failed"
-            job.error = str(exc)[:500]
-            job.lease_until = None
-            job.finished_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         return True
+    finally:
+        stop_renewal.set()
+        renewal.join(timeout=5)
 
 
 def main():

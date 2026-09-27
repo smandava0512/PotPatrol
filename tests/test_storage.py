@@ -3,6 +3,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from potpatrol.api import create_app
+from potpatrol.db import Drive
 from potpatrol.worker import process_once
 from potpatrol.storage import LocalStore, S3Store
 
@@ -65,7 +66,10 @@ def test_s3_upload_and_worker_flow(tmp_path):
     upload = client.post(f"/v1/drives/{drive}/upload-init", headers=headers, json={}).json()
     video = (Path(__file__).parent.parent / "fixtures" / "sample-drive.mp4").read_bytes()
     assert client.put(upload["upload_url"], headers={**headers, "Content-Type": "video/mp4"}, content=video).status_code == 204
-    assert ("private-bucket", f"potpatrol/videos/{drive}.mp4") in s3.objects
+    with app.state.config.Session() as db:
+        video_key = db.get(Drive, drive).video_key
+    assert video_key.startswith(f"videos/{drive}/")
+    assert ("private-bucket", f"potpatrol/{video_key}") in s3.objects
     client.post(f"/v1/drives/{drive}/complete", headers=headers, json={})
     assert process_once(app.state.config)
     result = client.get(f"/v1/drives/{drive}", headers=headers).json()

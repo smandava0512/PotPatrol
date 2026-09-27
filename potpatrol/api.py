@@ -11,7 +11,7 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.responses import Response as BytesResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from .db import Drive, Evidence, Hazard, Job, Location, ReportDraft, session_factory
 from .storage import LocalStore, S3Store
@@ -66,10 +66,15 @@ class Config:
         self.db_url = db_url or config_env("DATABASE_URL", "sqlite:///./potpatrol.db")
         self.storage_dir = Path(storage_dir or config_env("STORAGE_DIR", "./.potpatrol-storage")).resolve()
         self.token = token if token is not None else config_env("DEVICE_TOKEN")
+        extra_tokens = config_env("DEVICE_TOKENS")
+        additional = [item.strip() for item in extra_tokens.split(",")] if extra_tokens else []
+        if any(not item for item in additional):
+            raise RuntimeError("POTPATROL_DEVICE_TOKENS contains an empty credential")
+        self.tokens = tuple(dict.fromkeys(([self.token] if self.token else []) + additional))
         self.analyzer = analyzer if analyzer is not None else config_env("ANALYZER")
         self.reporter = config_env("REPORTER")
-        if not self.token:
-            raise RuntimeError("Set POTPATROL_DEVICE_TOKEN before starting API")
+        if not self.tokens:
+            raise RuntimeError("Set POTPATROL_DEVICE_TOKEN or POTPATROL_DEVICE_TOKENS before starting API")
         self.storage_dir.mkdir(parents=True, exist_ok=True)
         bucket = config_env("S3_BUCKET")
         self.store = store or (S3Store(bucket, config_env("S3_PREFIX")) if bucket else LocalStore(self.storage_dir))
@@ -102,7 +107,11 @@ def create_app(db_url=None, storage_dir=None, token=None, analyzer=None, store=N
 
     def auth(x_device_token: Annotated[str | None, Header()] = None):
         import hmac
-        if not x_device_token or not hmac.compare_digest(x_device_token, config.token):
+        matched = False
+        if x_device_token:
+            for configured in config.tokens:
+                matched |= hmac.compare_digest(x_device_token, configured)
+        if not matched:
             raise HTTPException(401, "Invalid device token")
         return owner_hash(x_device_token)
 
@@ -123,11 +132,13 @@ def create_app(db_url=None, storage_dir=None, token=None, analyzer=None, store=N
     def upload_init(drive_id: uuid.UUID, request: Request, owner: Owner):
         with config.Session.begin() as db:
             drive = owned(db, Drive, drive_id, owner)
-            if drive.status not in ("created", "uploading"):
+            expiry = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat().replace("+00:00", "Z")
+            renewed = db.execute(update(Drive).where(
+                Drive.id == drive.id, Drive.owner == owner,
+                Drive.status.in_(("created", "uploading")),
+            ).values(upload_expires_at=expiry, status="uploading"))
+            if renewed.rowcount != 1:
                 raise HTTPException(409, "Drive no longer accepts uploads")
-            drive.upload_expires_at = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat().replace("+00:00", "Z")
-            drive.status = "uploading"
-            expiry = drive.upload_expires_at
         return {"upload_url": str(request.url_for("put_video", drive_id=str(drive_id))), "method": "PUT", "headers": {"Content-Type": "video/mp4"}, "expires_at": expiry}
 
     @app.put("/v1/drives/{drive_id}/video", status_code=204, name="put_video")
@@ -162,12 +173,16 @@ def create_app(db_url=None, storage_dir=None, token=None, analyzer=None, store=N
                 if result.returncode or duration <= 0 or duration > 600:
                     raise HTTPException(422, "Invalid or overlong MP4")
             with config.Session.begin() as db:
-                drive = owned(db, Drive, drive_id, owner)
-                if drive.status != "uploading":
+                key = f"videos/{drive_id}/{uuid.uuid4().hex}.mp4"
+                published = db.execute(update(Drive).where(
+                    Drive.id == str(drive_id), Drive.owner == owner, Drive.status == "uploading",
+                    Drive.upload_expires_at >= utc_now(),
+                ).values(video_key=key))
+                if published.rowcount != 1:
                     raise HTTPException(409, "Drive no longer accepts uploads")
-                key = f"videos/{drive_id}.mp4"
+                # The conditional UPDATE locks the drive until this unique key is stored.
+                # /complete must not freeze a partially written or replaced object.
                 config.store.put_file(key, temp, "video/mp4")
-                drive.video_key = key
             return Response(status_code=204)
         finally:
             if temp:
@@ -208,9 +223,13 @@ def create_app(db_url=None, storage_dir=None, token=None, analyzer=None, store=N
                 raise HTTPException(409, "Use /retry for failed drives")
             if not drive.video_key or not config.store.exists(drive.video_key):
                 raise HTTPException(409, "Upload MP4 before completing")
-            drive.video_started_at = payload.video_started_at.isoformat().replace("+00:00", "Z") if payload.video_started_at else None
-            drive.status = "queued"
-            drive.stage = "queued"
+            frozen = db.execute(update(Drive).where(
+                Drive.id == drive.id, Drive.owner == owner, Drive.status.in_(("created", "uploading")),
+                Drive.video_key == drive.video_key,
+            ).values(video_started_at=payload.video_started_at.isoformat().replace("+00:00", "Z") if payload.video_started_at else None,
+                     status="queued", stage="queued"))
+            if frozen.rowcount != 1:
+                raise HTTPException(409, "Video changed; retry completion")
             db.add(Job(id=str(uuid.uuid4()), drive_id=drive.id, state="pending", attempts=0))
             return {"drive_id": drive.id, "status": drive.status}
 

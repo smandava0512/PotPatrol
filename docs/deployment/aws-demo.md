@@ -16,16 +16,21 @@ The EC2 instance, disk and public IPv4 address can incur charges while running.
 ## Configuration and runbook
 
 - Clone `feat/developer-2-backend` into `/home/ec2-user/potpatrol-backend`.
-- On that host, create `.env` (mode `0600`) with `POTPATROL_DEVICE_TOKEN` and an
-  **explicit** `POTPATROL_ANALYSIS_MODE=fixture` for the synthetic transport demo.
-  Never publish the token or put it in an image/build argument.
+- On that host, create `.env` (mode `0600`) with an **explicit**
+  `POTPATROL_ANALYSIS_MODE=fixture` for the synthetic transport demo. Use
+  `POTPATROL_DEVICE_TOKENS` with one distinct, random credential per participating
+  device, delivered privately. The legacy `POTPATROL_DEVICE_TOKEN` may be used
+  only for a genuinely single-device demo; remove it when assigning separate
+  credentials, or its old shared owner remains accessible. Restart the API after
+  revoking a credential. Never publish tokens or put them in an image/build argument.
 - Create `db.env` (mode `0600`) with `POTPATROL_DATABASE_URL` using the
   `postgresql+psycopg://` driver and TLS (`sslmode=require` or stronger). Compose
   reads this file as **raw** to preserve special characters in the password.
   Both secret files are ignored by Git and the Docker build context.
 - On the host, run `sudo docker compose -f compose.aws.yaml config --quiet`, then
   `sudo docker compose -f compose.aws.yaml run --rm --no-deps api alembic upgrade head`
-  before starting new API code. Run `sudo docker compose -f compose.aws.yaml build api`
+  before starting new API code (the worker-fencing release requires revision
+  `c8e0a12451d6`). Run `sudo docker compose -f compose.aws.yaml build api`
   and `sudo docker compose -f compose.aws.yaml up -d --no-build`.
 - Verify `https://api.potpatrol.miami/health` **without disabling certificate
   validation**. The live fixture smoke covers HTTPS upload-init, authenticated
@@ -39,6 +44,9 @@ until a genuine pothole clip and clean clip have been evaluated and evidence
 reviewed. Camera-app originals need private MP4 conversion for the upload API and
 must not be assigned an unverified first-frame UTC/GPS. Final acceptance also
 requires Shravya's iPhone test over this HTTPS endpoint.
+
+Replaced MP4s now use distinct private keys; the service does not yet garbage-collect
+unreferenced objects. Budget for cleanup and backup before long-term use.
 
 For updates, check out a reviewed commit on the **feature branch** in the isolated
 host directory, rebuild/recreate only this Compose project, and rerun migration
