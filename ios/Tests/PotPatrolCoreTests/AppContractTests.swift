@@ -170,4 +170,88 @@ final class AppContractTests: XCTestCase {
         XCTAssertEqual(library.drives.map(\.id), [drive.id])
         XCTAssertEqual(library.unreadableDriveIDs, [corrupt.id])
     }
+    func testCoordinateReviewClearsOnRevertAndMissingEqualsNull() throws {
+        let base = try DemoFixtures.report(for: SavedDrive(demoScenario: .pothole))
+        var report = EditableReport(package: ReportPackage(reportID: base.reportID, fields: base.fields,
+                                   destination: ReportDestination(status: "verified", url: "https://example.com/report"), submissionStatus: "not_submitted"))
+        var edited = report.package.fields
+        edited["latitude"] = .number(26)
+        report.edit(fields: edited)
+        XCTAssertTrue(report.destinationNeedsReview)
+        XCTAssertNil(report.portalURL)
+        report.edit(fields: base.fields)
+        XCTAssertFalse(report.destinationNeedsReview)
+        XCTAssertNotNil(report.portalURL)
+        let reopened = try PotPatrolJSON.decoder().decode(EditableReport.self, from: PotPatrolJSON.encoder().encode(report))
+        XCTAssertFalse(reopened.destinationNeedsReview)
+        var noCoordinates = base.fields
+        noCoordinates.removeValue(forKey: "latitude")
+        noCoordinates.removeValue(forKey: "longitude")
+        var missing = EditableReport(package: ReportPackage(reportID: base.reportID, fields: noCoordinates,
+                                    destination: base.destination, submissionStatus: "not_submitted"))
+        noCoordinates["latitude"] = .null
+        noCoordinates["longitude"] = .null
+        missing.edit(fields: noCoordinates)
+        XCTAssertFalse(missing.destinationNeedsReview)
+        // Old drafts already marked edited cannot safely infer their original coordinates.
+        var legacy = try JSONSerialization.jsonObject(with: PotPatrolJSON.encoder().encode(report)) as! [String: Any]
+        legacy.removeValue(forKey: "originalCoordinates")
+        legacy["destinationNeedsReview"] = true
+        var oldReport = try PotPatrolJSON.decoder().decode(EditableReport.self, from: JSONSerialization.data(withJSONObject: legacy))
+        oldReport.edit(fields: oldReport.package.fields)
+        XCTAssertTrue(oldReport.destinationNeedsReview)
+    }
+    func testCandidateSelectionPreservesNeedsReviewAndReceiptHonesty() throws {
+        let package = try DemoFixtures.report(for: SavedDrive(demoScenario: .destinationCandidates))
+        XCTAssertEqual(package.destination.candidates?.count, 3)
+        XCTAssertFalse(package.destination.reason!.isEmpty)
+        XCTAssertNotNil(package.destination.candidates?.first?.sources?.first?.httpsURL)
+        var report = EditableReport(package: package)
+        XCTAssertNil(report.portalURL)
+        XCTAssertFalse(report.selectCandidate("unknown-agency"))
+        XCTAssertTrue(report.selectCandidate("miami-dade-dtpw-311"))
+        XCTAssertEqual(report.package.destination.status, "needs_review")
+        XCTAssertEqual(report.handoff, .draftPrepared)
+        XCTAssertNotNil(report.portalURL)
+        XCTAssertFalse(report.confirmSubmission(receipt: "receipt"))
+        report.recordPortalOpened()
+        XCTAssertEqual(report.handoff, .portalOpened)
+        XCTAssertTrue(report.confirmSubmission(receipt: "receipt"))
+        XCTAssertTrue(report.selectCandidate("fdot-d6"))
+        XCTAssertEqual(report.handoff, .draftPrepared)
+        XCTAssertNil(report.receipt)
+        XCTAssertEqual(report.previousReceipts, ["receipt"])
+        let reopened = try PotPatrolJSON.decoder().decode(EditableReport.self, from: PotPatrolJSON.encoder().encode(report))
+        XCTAssertEqual(reopened.selectedCandidateID, "fdot-d6")
+        XCTAssertEqual(reopened.portalURL, report.portalURL)
+        var edited = report.package.fields
+        edited["latitude"] = .number(26)
+        report.edit(fields: edited)
+        XCTAssertNil(report.portalURL)
+        XCTAssertFalse(report.selectCandidate("miami-dade-dtpw-311"))
+        XCTAssertNil(report.selectedCandidateID)
+    }
+    func testRefreshReplacesBrokenFieldsAndKeepsEarlierReceipts() throws {
+        let fresh = try DemoFixtures.report(for: SavedDrive(demoScenario: .destinationCandidates))
+        var fields = fresh.fields
+        fields["description"] = .object(["value": .string("Previously nested description"), "source": .string("template")])
+        fields.removeValue(forKey: "latitude")
+        fields.removeValue(forKey: "longitude")
+        var broken = EditableReport(package: ReportPackage(reportID: fresh.reportID, fields: fields,
+                                   destination: fresh.destination, submissionStatus: "not_submitted"))
+        XCTAssertEqual(broken.package.fields["description"]?.text, "")
+        let refreshed = broken.refreshed(with: fresh)
+        XCTAssertFalse(refreshed.package.fields["description"]!.text.isEmpty)
+        XCTAssertNotNil(refreshed.coordinate)
+        XCTAssertFalse(refreshed.destinationNeedsReview)
+        broken = EditableReport(package: fresh)
+        XCTAssertTrue(broken.selectCandidate("miami-dade-dtpw-311"))
+        broken.recordPortalOpened()
+        XCTAssertTrue(broken.confirmSubmission(receipt: "real-receipt"))
+        let replacement = broken.refreshed(with: fresh)
+        XCTAssertEqual(replacement.handoff, .draftPrepared)
+        XCTAssertEqual(replacement.previousReceipts, ["real-receipt"])
+        XCTAssertNil(replacement.receipt)
+        XCTAssertNil(replacement.selectedCandidateID)
+    }
 }

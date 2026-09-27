@@ -28,7 +28,11 @@ struct ReportEditorView: View {
     @State private var error: String?
     @State private var saved = false
     @State private var share: SharePayload?
+    @State private var includeFullVideo = false
+    @State private var refreshing = false
+    @State private var showRefreshConfirmation = false
     @FocusState private var focusedField: String?
+    private var currentDraft: EditableReport? { try? editedReport() }
     var body: some View {
         Form {
             if let report {
@@ -42,12 +46,42 @@ struct ReportEditorView: View {
                         .font(.footnote).foregroundStyle(.secondary)
                     Button("Save draft") { Task { await saveDraft() } }.accessibilityIdentifier("saveDraft")
                     if saved { Text("Edits saved on this iPhone").font(.footnote).foregroundStyle(.secondary) }
+                    Button("Refresh draft") { focusedField = nil; showRefreshConfirmation = true }
+                        .disabled(refreshing).accessibilityIdentifier("refreshDraft")
+                    if refreshing { ProgressView("Refreshing draft") }
                 }
                 Section("Reporting destination") {
-                    Text(destinationMessage(report)).accessibilityIdentifier("destinationStatus")
+                    Text(destinationMessage(currentDraft ?? report)).accessibilityIdentifier("destinationStatus")
+                    if let reason = report.package.destination.reason {
+                        Text(reason).font(.footnote).accessibilityIdentifier("destinationReason")
+                    }
                     if let url = report.package.destination.url { Text(url).font(.footnote).textSelection(.enabled) }
-                    Button("Open official portal") { Task { await openPortal() } }
-                        .disabled(report.portalURL == nil).accessibilityIdentifier("openPortal")
+                    ForEach(report.package.destination.candidates ?? []) { candidate in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(candidate.name).font(.headline)
+                            if let url = candidate.destinationURL { Text(url).font(.footnote).textSelection(.enabled) }
+                            ForEach(candidate.sources ?? []) { source in
+                                if let url = source.httpsURL {
+                                    Link(source.what ?? "Agency source", destination: url).font(.footnote)
+                                    Text(source.url).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                                }
+                            }
+                            Button(currentDraft?.selectedCandidateID == candidate.id ? "Selected by you" : "Choose this agency") {
+                                Task { await selectCandidate(candidate.id) }
+                            }
+                            .disabled(report.package.destination.status != "needs_review" || candidate.httpsURL == nil || currentDraft?.coordinate == nil || currentDraft?.destinationNeedsReview != false)
+                            .accessibilityIdentifier("candidate_\(candidate.id)")
+                        }.padding(.vertical, 4)
+                    }
+                    ForEach(report.package.destination.sources ?? []) { source in
+                        if let url = source.httpsURL { Link(source.what ?? source.url, destination: url).font(.footnote) }
+                    }
+                    if let candidate = currentDraft?.selectedCandidate {
+                        Text("You selected \(candidate.name). Confirm road ownership on the agency's site; this choice does not verify it.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                    Button(currentDraft?.selectedCandidate == nil ? "Open official portal" : "Open selected agency page") { Task { await openPortal() } }
+                        .disabled(currentDraft?.portalURL == nil).accessibilityIdentifier("openPortal")
                     Text("Opening the portal is not a submission. Attach the evidence and complete its form manually.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
@@ -56,7 +90,10 @@ struct ReportEditorView: View {
                         do { UIPasteboard.general.string = sharedText(try editedReport()) }
                         catch { self.error = error.localizedDescription }
                     }
-                    Button("Share text, evidence, and saved video") { Task { await prepareShare() } }
+                    Toggle("Include full drive video", isOn: $includeFullVideo).accessibilityIdentifier("includeFullVideo")
+                    Text("The evidence photo is shared by default. Full video may include number plates or people.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    Button(includeFullVideo ? "Share text, evidence, and video" : "Share text and evidence") { Task { await prepareShare() } }
                         .accessibilityIdentifier("shareReport")
                 }
                 Section("Submission") {
@@ -78,6 +115,7 @@ struct ReportEditorView: View {
             if let error { Text(error).foregroundStyle(.red) }
         }
         .navigationTitle("Review report")
+        .disabled(refreshing)
         .scrollDismissesKeyboard(.interactively)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
@@ -86,16 +124,40 @@ struct ReportEditorView: View {
             }
         }
         .sheet(item: $share) { payload in ActivityShare(items: payload.items) }
-        .task {
-            do {
-                let report = try await state.report(driveID, hazardID: hazard.id)
-                self.report = report
-                category = report.package.fields["category"]?.text ?? hazard.category
-                description = report.package.fields["description"]?.text ?? ""
-                latitude = report.package.fields["latitude"]?.text ?? ""
-                longitude = report.package.fields["longitude"]?.text ?? ""
-            } catch { self.error = error.localizedDescription }
+        .confirmationDialog("Refresh draft from the server?", isPresented: $showRefreshConfirmation, titleVisibility: .visible) {
+            Button("Replace local draft", role: .destructive) { Task { await loadDraft(refresh: true) } }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This replaces your local edits with the latest server draft. Earlier submission receipts remain in history.")
         }
+        .task { await loadDraft() }
+    }
+    private func loadDraft(refresh: Bool = false) async {
+        refreshing = true
+        defer { refreshing = false }
+        do {
+            let loaded = try await state.report(driveID, hazardID: hazard.id, refresh: refresh)
+            report = loaded
+            let serverCategory = loaded.package.fields["category"]?.text ?? ""
+            category = serverCategory.isEmpty ? hazard.category : serverCategory
+            description = loaded.package.fields["description"]?.text ?? ""
+            latitude = loaded.package.fields["latitude"]?.text ?? ""
+            longitude = loaded.package.fields["longitude"]?.text ?? ""
+            receipt = ""
+            saved = false
+            error = nil
+        } catch { self.error = error.localizedDescription }
+    }
+    private func selectCandidate(_ id: String) async {
+        do {
+            var edited = try editedReport()
+            guard edited.selectCandidate(id) else {
+                throw PotPatrolAPIError.configuration("Review the location and choose an available agency page.")
+            }
+            try await state.saveReport(edited, id: driveID, hazardID: hazard.id)
+            report = edited
+            error = nil
+        } catch { self.error = error.localizedDescription }
     }
     private func editedReport() throws -> EditableReport {
         guard var report else { throw PotPatrolAPIError.invalidResponse }
@@ -164,8 +226,10 @@ struct ReportEditorView: View {
             report = edited
             var items: [Any] = [sharedText(edited)]
             if let evidence = try? await state.evidence(driveID, hazard: hazard) { items.append(evidence.1) }
-            let video = await state.repository.videoURL(driveID)
-            if FileManager.default.fileExists(atPath: video.path) { items.append(video) }
+            if includeFullVideo {
+                let video = await state.repository.videoURL(driveID)
+                if FileManager.default.fileExists(atPath: video.path) { items.append(video) }
+            }
             share = SharePayload(items: items)
         } catch { self.error = error.localizedDescription }
     }
@@ -174,7 +238,7 @@ struct ReportEditorView: View {
         return warning + report.shareText
     }
     private func destinationMessage(_ report: EditableReport) -> String {
-        if report.destinationNeedsReview { return "Location edited. Verify the destination for the revised location." }
+        if report.destinationNeedsReview { return "Location edited. Restore the original coordinates, or refresh the draft after the server updates its location." }
         switch report.package.destination.status {
         case "verified": return report.coordinate == nil ? "Location needs review before reporting." : "Verified destination supplied by the server"
         case "unsupported": return "Reporting is not supported for this location yet. You can save or share this draft."

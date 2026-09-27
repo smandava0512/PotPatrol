@@ -40,6 +40,7 @@ final class PotPatrolUITests: XCTestCase {
         finishDemo()
         reviewReport()
         let description = app.textViews["reportDescription"]
+        let originalDescription = description.value as? String
         description.tap()
         description.typeText(" Passenger reviewed this evidence.")
         if app.buttons["dismissReportKeyboard"].exists { app.buttons["dismissReportKeyboard"].tap() }
@@ -54,6 +55,14 @@ final class PotPatrolUITests: XCTestCase {
         savedDrive.tap()
         reviewReport()
         XCTAssertTrue((app.textViews["reportDescription"].value as? String)?.contains("Passenger reviewed") == true)
+        reveal(app.buttons["refreshDraft"])
+        app.buttons["refreshDraft"].tap()
+        app.buttons["Replace local draft"].tap()
+        let refreshed = NSPredicate { _, _ in
+            self.app.textViews["reportDescription"].value as? String == originalDescription
+        }
+        expectation(for: refreshed, evaluatedWith: nil)
+        waitForExpectations(timeout: 10)
     }
     func testMissingGPSKeepsHazardVisible() {
         finishDemo("demoNoGPS")
@@ -85,5 +94,26 @@ final class PotPatrolUITests: XCTestCase {
         reveal(share)
         XCTAssertTrue(share.waitForExistence(timeout: 5))
         XCTAssertTrue(share.isEnabled)
+        let video = app.switches["includeFullVideo"]
+        XCTAssertTrue(video.exists)
+        XCTAssertEqual(video.value as? String, "0")
+        XCTAssertEqual(share.label, "Share text and evidence")
+    }
+    func testCandidateSelectionEnablesHandoffWithoutConfirmingSubmission() {
+        finishDemo("demoCandidates")
+        reviewReport()
+        let candidate = app.buttons["candidate_miami-dade-dtpw-311"]
+        reveal(candidate)
+        XCTAssertTrue(candidate.waitForExistence(timeout: 5))
+        candidate.tap()
+        XCTAssertEqual(candidate.label, "Selected by you")
+        let portal = app.buttons["openPortal"]
+        for _ in 0..<9 where !portal.isHittable { app.swipeUp() }
+        XCTAssertTrue(portal.exists)
+        XCTAssertTrue(portal.isEnabled)
+        XCTAssertEqual(portal.label, "Open selected agency page")
+        let handoff = app.staticTexts["handoffState"]
+        for _ in 0..<5 where !handoff.isHittable { app.swipeUp() }
+        XCTAssertEqual(handoff.label, "Draft prepared")
     }
 }

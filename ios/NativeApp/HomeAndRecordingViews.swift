@@ -37,6 +37,7 @@ struct HomeView: View {
                         Button("No hazards") { Task { await state.startRecording(demo: .noHazards) } }.accessibilityIdentifier("demoNoHazards")
                         Button("Processing failure") { Task { await state.startRecording(demo: .processingFailure) } }.accessibilityIdentifier("demoFailure")
                         Button("Unsupported destination") { Task { await state.startRecording(demo: .unsupportedDestination) } }.accessibilityIdentifier("demoUnsupported")
+                        Button("Destination candidates") { Task { await state.startRecording(demo: .destinationCandidates) } }.accessibilityIdentifier("demoCandidates")
                     }
                     Text("Demo fixtures are a backup walkthrough, not real analysis.").font(.footnote).foregroundStyle(.secondary)
                 }

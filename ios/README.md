@@ -18,7 +18,7 @@ Tokens, real clips, and signing credentials do not belong in Git. Clips are igno
 
 Clone this branch; open `ios/PotPatrol.xcodeproj`. Select **PotPatrol**, choose an iPhone Simulator, then Run. No new project or third-party generator is needed.
 
-Tap **Sample drive → Stop and save**. The labeled fixture moves through upload/processing to a pothole. Open it, review evidence and the approximate map, then edit/save its report. Its unverified destination keeps the portal disabled. **More sample scenarios** covers no GPS, zero hazards, processing failure and unsupported destination. Drives and edits persist through relaunch.
+Tap **Sample drive → Stop and save**. The labeled fixture moves through upload/processing to a pothole. Open it, review evidence and the approximate map, then edit/save its report. Its unverified destination keeps the portal disabled. **More sample scenarios** covers no GPS, zero hazards, processing failure, unsupported destination and destination candidates. Drives and edits persist through relaunch.
 
 ```sh
 cd ios
@@ -46,7 +46,11 @@ Each drive's Application Support folder owns `drive.mp4`, `locations.json`, `cap
 
 Capture stops below the backend's ten-minute/100-MiB limits. File-backed background URLSession uses a stable identifier. Server ID, transfer acknowledgment, GPS checkpoints, status, errors, private evidence and reports survive reopening. Transient requests retry up to three times; manual retry renews expired tickets. Background transfers can survive system termination; user force-quit cancels them until reopening/retry. Recovered interrupted recordings require review before upload.
 
-Draft edits stay local because v1 has no update endpoint. Portal opening requires a server-verified HTTPS destination and valid coordinates; changing location requires destination review. Opening never confirms submission. An actual user receipt is required, labeled **Submission confirmed by you**. Editing a previously opened/confirmed draft returns it to Draft prepared and retains older receipts as history. Share includes text, available cached evidence and the whole saved video attachment.
+Draft edits stay local because v1 has no update endpoint. **Refresh draft** explicitly re-fetches the server package, replacing local edits after confirmation and preserving earlier receipts in history. Developer 2's adapter owns flattening structured category/description/coordinates; it must also repair or flatten previously persisted server drafts.
+
+Reports show destination candidates, agency URLs, sources and the server reason. A valid location and an explicit user choice allow opening a candidate HTTPS agency page under `needs_review`; the server status stays `needs_review` and ownership remains unverified. Verified server destinations also support handoff. Coordinate edits block handoff until restored to the original values or refreshed against the updated server draft. Missing and null coordinates compare equally. Older cached drafts already marked edited without an original-coordinate baseline require refresh.
+
+Opening never confirms submission. An actual user receipt is required, labeled **Submission confirmed by you**. Editing a previously opened/confirmed draft or changing its selected candidate returns it to Draft prepared and retains older receipts as history. Share includes text and available evidence by default; **Include full drive video** is off until the user opts in.
 
 ## Verification limits
 

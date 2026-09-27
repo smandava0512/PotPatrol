@@ -131,13 +131,47 @@ public struct DriveSnapshot: Codable, Sendable {
     public var isFinished: Bool { status == "complete" || status == "failed" }
 }
 
+public struct ReportSource: Codable, Identifiable, Sendable {
+    public let url: String
+    public let what: String?
+    public let checked: String?
+    public var id: String { url }
+    public var httpsURL: URL? { ReportDestination.httpsURL(url) }
+}
+
+public struct ReportDestinationCandidate: Codable, Identifiable, Sendable {
+    public let agencyID: String?
+    public let name: String
+    public let destinationURL: String?
+    public let sources: [ReportSource]?
+    enum CodingKeys: String, CodingKey {
+        case agencyID = "agency_id", name, destinationURL = "destination_url", sources
+    }
+    public var id: String { agencyID ?? name + (destinationURL ?? "") }
+    public var httpsURL: URL? { ReportDestination.httpsURL(destinationURL) }
+}
+
 public struct ReportDestination: Codable, Sendable {
     public let status: String
     public let url: String?
-    public var verifiedURL: URL? {
-        guard status == "verified", let url = url.flatMap(URL.init(string:)),
-              url.scheme?.lowercased() == "https", url.host != nil else { return nil }
+    public let candidates: [ReportDestinationCandidate]?
+    public let reason: String?
+    public let sources: [ReportSource]?
+    public init(status: String, url: String?, candidates: [ReportDestinationCandidate]? = nil,
+                reason: String? = nil, sources: [ReportSource]? = nil) {
+        self.status = status
+        self.url = url
+        self.candidates = candidates
+        self.reason = reason
+        self.sources = sources
+    }
+    static func httpsURL(_ value: String?) -> URL? {
+        guard let url = value.flatMap(URL.init(string:)), url.scheme?.lowercased() == "https",
+              let host = url.host, !host.isEmpty, url.user == nil, url.password == nil else { return nil }
         return url
+    }
+    public var verifiedURL: URL? {
+        status == "verified" ? Self.httpsURL(url) : nil
     }
 }
 

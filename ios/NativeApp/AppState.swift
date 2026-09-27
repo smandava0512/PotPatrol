@@ -286,11 +286,12 @@ final class AppState: ObservableObject {
             await reload()
         } catch { notice = error.localizedDescription }
     }
-    func report(_ id: UUID, hazardID: UUID) async throws -> EditableReport {
+    func report(_ id: UUID, hazardID: UUID, refresh: Bool = false) async throws -> EditableReport {
         let drive = try await repository.load(id)
-        if let report = drive.reports[hazardID.uuidString] { return report }
+        let cached = drive.reports[hazardID.uuidString]
+        if let cached, !refresh { return cached }
         let package = drive.isDemo ? try DemoFixtures.report(for: drive) : try await client(for: drive).reportDraft(hazardID: hazardID)
-        let report = EditableReport(package: package)
+        let report = cached?.refreshed(with: package) ?? EditableReport(package: package)
         try await saveReport(report, id: id, hazardID: hazardID)
         return report
     }

@@ -13,10 +13,12 @@ This consumer note follows Developer 2's [published v1 contract](https://github.
 | Recovery | Persist server ID, transfer receipt, GPS index, status/errors, evidence and edits. Poll same drive on reopening. |
 | Evidence | Same-origin authenticated GET/private cache; reject foreign origins to protect device token. |
 | Missing location | Keep hazard/evidence/time; show Location unavailable, no invented pin. Editable/shareable report. |
-| Destination | Nested `destination:{status,url}`. Verified HTTPS + valid location required for portal. `needs_review`/unknown/unverified/unsupported remain disabled. |
+| Destination | Decode nested status/url/candidates/reason/sources. Valid unchanged coordinates plus an explicit candidate selection allow a `needs_review` HTTPS agency handoff without upgrading ownership status. Verified HTTPS destinations also work; unknown/unverified/unsupported remain disabled. |
 | Analysis mode | Optional `analysis_mode` is retained if returned. `fixture` labels saved drives, results, hazard details, reports and copied/shared text as synthetic. An absent mode remains unknown. |
 | Unsupported | Explicit message; save/edit/share remain available. Isolated demo fixture exercises it, not current server emission. |
 | Submission | Draft / portal opened / actual user receipt. Portal opening never confirms submission. |
+| Draft refresh | Explicit re-fetch replaces the cache after user confirmation and retains receipt history. Developer 2 owns flattening fields, including previously persisted server drafts. |
+| Sharing | Text and available evidence photo by default. Full drive video is opt-in and defaults off. |
 
 ## Pending additions
 

@@ -39,6 +39,24 @@ public enum DemoFixtures {
         if drive.demoScenario == .unsupportedDestination {
             object["destination"] = ["status": "unsupported", "url": NSNull()] as [String: Any]
         }
+        if drive.demoScenario == .destinationCandidates {
+            let countySource = "https://www.miamidade.gov/global/service.page?Mduid_service=ser1483631370424631"
+            let citySource = "https://www.miami.gov/My-Home-Neighborhood/Solve-a-Problem/Report-a-Pothole"
+            let fdotSource = "https://fdot.gov/info/moredot/districts/dist6.shtm"
+            let portal = "https://311.miamidade.gov/311/s/?c__st=COMPWPH"
+            object["destination"] = [
+                "status": "needs_review", "url": NSNull(),
+                "reason": "GPS does not establish which agency maintains this road. Confirm ownership before reporting.",
+                "candidates": [
+                    ["agency_id": "miami-dade-dtpw-311", "name": "Miami-Dade County 311", "destination_url": portal,
+                     "sources": [["url": countySource, "what": "County reporting scope"]]],
+                    ["agency_id": "city-of-miami", "name": "City of Miami", "destination_url": portal,
+                     "sources": [["url": citySource, "what": "City pothole reporting page"]]],
+                    ["agency_id": "fdot-d6", "name": "FDOT District Six", "destination_url": fdotSource,
+                     "sources": [["url": fdotSource, "what": "District contact page"]]]
+                ]
+            ] as [String: Any]
+        }
         if drive.demoScenario == .noGPS {
             var fields = object["fields"] as! [String: Any]
             fields["latitude"] = NSNull()

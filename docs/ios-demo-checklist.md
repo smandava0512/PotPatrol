@@ -28,7 +28,8 @@ Open `ios/PotPatrol.xcodeproj`, select **PotPatrol** and an iPhone Simulator, th
 4. Review server pothole/private evidence/offset/optional confidence and severity/approximate location/editable report/destination. Compare timing with original media; confirm UTC survives reopening.
 5. Test a clean clip for zero hazards and a GPS-denied clip for a visible hazard without a map.
 6. Test network retry, failed processing, unsupported destination and retained media. Explicit force-quit cancels background transfers; reopen/retry.
-7. Only verified destinations open portals. Attach shared media manually where needed. Confirmation requires an actual receipt.
+7. Review candidate names, URLs, official sources and reason; choose the road owner yourself before opening its page. A candidate choice stays `needs_review`; handoff says Portal opened. Attach shared evidence manually. Full video is off by default. Confirmation requires an actual receipt.
+8. Refresh a cached draft after Developer 2's flattening fix. Check the latest category/description/location, coordinate edit and restoration, and receipt history.
 
 ## Fallback / evidence
 
@@ -42,3 +43,6 @@ Sample scenarios and server results with `analysis_mode:"fixture"` are labeled *
 | Mac / Xcode / installed iOS | Pending; iPhone 17 Pro or Pro Max planned |
 | Real pothole / clean clip | Pending capture |
 | Physical UTC/GPS timing / live real analyzer | Pending Mac/phone/server |
+| Report refresh / candidates / coordinate restoration / opt-in video | Implemented; follow-up macOS CI verification pending |
+
+On 2026-09-27, public `https://api.potpatrol.miami/health` returned `status:ok`. Authenticated real-model acceptance still needs a valid UUID `drive_id` and private device credentials; physical app rendering remains unconfirmed.

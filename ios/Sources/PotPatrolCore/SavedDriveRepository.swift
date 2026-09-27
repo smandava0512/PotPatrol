@@ -5,7 +5,7 @@ public enum LocalDriveState: String, Codable, Sendable {
 }
 
 public enum DemoScenario: String, CaseIterable, Codable, Sendable {
-    case pothole, noGPS, noHazards, processingFailure, unsupportedDestination
+    case pothole, noGPS, noHazards, processingFailure, unsupportedDestination, destinationCandidates
     public var label: String {
         switch self {
         case .pothole: return "Pothole with GPS"
@@ -13,6 +13,7 @@ public enum DemoScenario: String, CaseIterable, Codable, Sendable {
         case .noHazards: return "No hazards"
         case .processingFailure: return "Processing failure"
         case .unsupportedDestination: return "Unsupported destination"
+        case .destinationCandidates: return "Destination candidates"
         }
     }
 }
