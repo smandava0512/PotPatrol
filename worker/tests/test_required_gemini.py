@@ -358,3 +358,12 @@ def test_required_rejects_invalid_scan_boxes(clip):
     with pytest.raises(AnalysisError, match="Gemini"):
         analyze(video, out, detector=Detector(), validator=gemini)
     assert not os.path.exists(os.path.join(out, "analysis.json"))
+
+
+def test_required_ignores_well_formed_boxes_above_the_road_without_failing(clip):
+    video, out = clip
+    gemini = Gemini(hazards=[{"category": "road_damage", "bbox": [0.473, 0.082, 0.695, 0.345],
+                             "confidence": 0.81}])
+    manifest = analyze(video, out, detector=Detector(), validator=gemini)
+    assert manifest["events"] == []
+    assert len(gemini.scans) == manifest["gemini_frames_scanned"] == 24

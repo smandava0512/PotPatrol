@@ -83,8 +83,7 @@ class FrameSelector:
 def _valid_box(box) -> bool:
     return (isinstance(box, list) and len(box) == 4
             and all(type(v) in (float, int) and math.isfinite(v) and 0 <= v <= 1 for v in box)
-            and box[0] < box[2] and box[1] < box[3]
-            and (box[1] + box[3]) / 2 >= 0.30)
+            and box[0] < box[2] and box[1] < box[3])
 
 
 def _valid_score(value) -> bool:
@@ -140,6 +139,8 @@ def reconcile(events: list[dict], selected: FrameSelector, output_dir: str, vali
                         or not _valid_score(finding.get("confidence"))):
                     raise AnalysisError("Gemini frame scan failed or returned invalid box")
                 box = finding["bbox"]
+                if (box[1] + box[3]) / 2 < 0.30:
+                    continue  # valid response outside the supported road region, not provider failure
                 if any(ev["first_seen_ms"] - 1500 <= offset <= ev["last_seen_ms"] + 1500
                        and iou(ev["bbox"], box) >= 0.5 for ev in events + accepted):
                     continue  # duplicate localization, not merely a nearby hazard
