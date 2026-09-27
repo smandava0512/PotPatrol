@@ -56,13 +56,45 @@ final class AppContractTests: XCTestCase {
         let accepted = try await client().sendLocations(driveID: UUID(), samples: [worse, sample])
         XCTAssertEqual(accepted, 1)
     }
-    func testCompleteDoesNotSendProposedTimestampField() async throws {
+    func testCompleteWithoutRecordedOriginKeepsEmptyBody() async throws {
         let id = UUID()
         APIStub.handler = { request in
             XCTAssertEqual(String(data: self.body(request), encoding: .utf8), "{}")
             return (200, Data("{\"drive_id\":\"\(id.uuidString)\",\"status\":\"queued\"}".utf8))
         }
         _ = try await client().completeDrive(driveID: id)
+    }
+    func testCompleteSendsCapturedFirstFrameUTC() async throws {
+        let id = UUID()
+        let firstFrame = try XCTUnwrap(PotPatrolJSON.date("2026-09-26T12:00:00.125Z"))
+        APIStub.handler = { request in
+            let object = try JSONSerialization.jsonObject(with: self.body(request)) as! [String: Any]
+            XCTAssertEqual(object["video_started_at"] as? String, "2026-09-26T12:00:00.125Z")
+            return (200, Data("{\"drive_id\":\"\(id.uuidString)\",\"status\":\"queued\"}".utf8))
+        }
+        _ = try await client().completeDrive(driveID: id, videoStartedAt: firstFrame)
+    }
+    func testSavedVideoRequiresExplicitApprovalForTheSelectedServer() throws {
+        var drive = SavedDrive()
+        let first = URL(string: "https://api.potpatrol.miami")!
+        let other = URL(string: "https://other.example")!
+        XCTAssertFalse(drive.mayUpload(to: first))
+        drive.approvedUploadBaseURL = first.absoluteString
+        XCTAssertTrue(drive.mayUpload(to: first))
+        XCTAssertFalse(drive.mayUpload(to: other))
+        let encoder = PotPatrolJSON.encoder(), decoder = PotPatrolJSON.decoder()
+        XCTAssertTrue(try decoder.decode(SavedDrive.self, from: encoder.encode(drive)).mayUpload(to: first))
+        var legacy = try JSONSerialization.jsonObject(with: encoder.encode(drive)) as! [String: Any]
+        legacy.removeValue(forKey: "approvedUploadBaseURL")
+        let recovered = try decoder.decode(SavedDrive.self, from: JSONSerialization.data(withJSONObject: legacy))
+        XCTAssertFalse(recovered.mayUpload(to: first))
+    }
+    func testPrivateUploadUsesForegroundSessionAndRejectsEveryRedirect() {
+        let configuration = UploadSessionSafety.configuration()
+        XCTAssertNil(configuration.identifier) // Background sessions ignore redirect delegates.
+        for url in ["https://api.potpatrol.miami/video", "https://other.example/collect"] {
+            XCTAssertNil(UploadSessionSafety.redirect(URLRequest(url: URL(string: url)!)))
+        }
     }
     func testUploadAndEvidenceAuthDoNotLeakToForeignOrigin() async throws {
         let client = try client()
