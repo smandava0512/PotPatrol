@@ -1,5 +1,9 @@
 # Temporary PotPatrol Oracle demo
 
+> **Retired:** The Oracle demo was removed. Do not follow the DNS or deployment
+> steps below; the active isolated deployment is documented in
+> [aws-demo.md](aws-demo.md).
+
 This stack adds **only** `potpatrol-demo` containers and a new Traefik router for
 `potpatrol.circlenineteen.me`. It uses a dedicated SQLite database and private media
 volume; it does not use or migrate existing databases or change existing proxies.

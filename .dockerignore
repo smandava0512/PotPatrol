@@ -8,6 +8,7 @@ __pycache__
 *.sqlite*
 .env
 .env.*
+db.env
 *.pem
 *.key
 *.p8

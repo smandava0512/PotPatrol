@@ -1,4 +1,4 @@
-# Isolated, temporary Oracle demo; no changes to the existing Traefik container or other stacks.
+# RETIRED: Oracle demo was removed. See docs/deployment/aws-demo.md for the active deployment.
 name: potpatrol-demo
 x-potpatrol: &potpatrol
   build:
