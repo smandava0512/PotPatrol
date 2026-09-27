@@ -118,12 +118,26 @@ def load_dotenv() -> None:
 
 
 def max_validations() -> int:
-    return int(env("VALIDATE_MAX", str(DEFAULT_MAX_VALIDATIONS)))
+    try:
+        limit = int(env("VALIDATE_MAX", str(DEFAULT_MAX_VALIDATIONS)))
+        if limit < 0:
+            raise ValueError("negative image limit")
+        return limit
+    except ValueError:
+        print("validator: invalid POTPATROL_VALIDATE_MAX; skipping image checks", file=sys.stderr)
+        return 0
 
 
 def get_validator() -> CandidateValidator:
     """Gemini only when explicitly enabled and a key exists; otherwise the deterministic NullValidator."""
-    load_dotenv()
+    setting = env("VALIDATOR").lower()
+    if setting and setting != "gemini":
+        return NullValidator()
+    try:
+        load_dotenv()
+    except Exception as e:  # Optional configuration must not fail core detection.
+        print(f"validator: configuration unavailable ({type(e).__name__}); skipping", file=sys.stderr)
+        return NullValidator()
     if env("VALIDATOR").lower() != "gemini":
         return NullValidator()
     key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
