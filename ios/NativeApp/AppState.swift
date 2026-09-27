@@ -17,6 +17,7 @@ final class AppState: ObservableObject {
     @Published var savingRecording = false
     @Published var preparingRecording = false
     @Published var notice: String?
+    @Published private(set) var deletingDrives: Set<UUID> = []
     @Published var settings = ConnectionSettings()
     let repository: SavedDriveRepository
     let recorder = DriveRecorder()
@@ -57,6 +58,43 @@ final class AppState: ObservableObject {
         } catch { notice = error.localizedDescription }
     }
     func drive(_ id: UUID) -> SavedDrive? { drives.first { $0.id == id } }
+    func canDelete(_ drive: SavedDrive) -> Bool {
+        drive.state != .recording && activeRecordingID != drive.id && preparingDriveID != drive.id
+            && !busy.contains(drive.id) && !deletingDrives.contains(drive.id)
+    }
+    /// Lock against auto-resume, retries and polling before the first suspension.
+    func deleteDrive(_ id: UUID) async {
+        guard let candidate = drive(id), canDelete(candidate) else {
+            notice = "This drive is recording, uploading or already being deleted. Wait until it finishes and try again."
+            return
+        }
+        deletingDrives.insert(id)
+        defer { deletingDrives.remove(id) }
+        do {
+            let saved = try await repository.load(id)
+            if let remoteID = saved.serverID, saved.remoteDeletionConfirmed != true {
+                guard saved.serverBaseURL != nil else {
+                    throw PotPatrolAPIError.configuration("This drive has no recorded server address. Cannot verify where to delete it; local files are retained.")
+                }
+                try await client(for: saved).deleteDrive(driveID: remoteID)
+                try await repository.update(id) { $0.remoteDeletionConfirmed = true }
+            }
+            try await repository.deleteLocalDrive(id)
+            path.removeAll { route in
+                switch route {
+                case .drive(let driveID), .hazard(let driveID, _): return driveID == id
+                }
+            }
+            await reload()
+        } catch {
+            if let apiError = error as? PotPatrolAPIError, case .http(404, _) = apiError {
+                notice = "Server deletion was not confirmed (404 may mean missing or another owner). Local video, GPS and evidence are retained. Check the original server and token before retrying."
+            } else {
+                notice = "Could not finish deleting this drive: \(error.localizedDescription) Local files are retained if still present; retry from Saved drives."
+            }
+            await reload()
+        }
+    }
     private func client(for drive: SavedDrive) throws -> PotPatrolAPIClient {
         let client = try settings.client()
         if let original = drive.serverBaseURL, original != client.connection.baseURL.absoluteString {
@@ -180,6 +218,7 @@ final class AppState: ObservableObject {
     }
     func resumeSavedDrives() async {
         for drive in drives where drive.state == .saved || drive.state == .uploading {
+            guard drive.remoteDeletionConfirmed != true && !deletingDrives.contains(drive.id) else { continue }
             // Resume only uploads previously approved for this exact server.
             if drive.isDemo { Task { await upload(drive.id) } }
             else if !drive.interrupted, let client = try? client(for: drive),
@@ -204,7 +243,8 @@ final class AppState: ObservableObject {
         throw PotPatrolAPIError.invalidResponse
     }
     func approveUpload(_ id: UUID) async {
-        guard let saved = drive(id), saved.canReviewForUpload, !busy.contains(id) else { return }
+        guard let saved = drive(id), saved.canReviewForUpload, !busy.contains(id),
+              !deletingDrives.contains(id), saved.remoteDeletionConfirmed != true else { return }
         do {
             let client = try client(for: saved)
             try await repository.update(id) { $0.approvedUploadBaseURL = client.connection.baseURL.absoluteString }
@@ -213,7 +253,8 @@ final class AppState: ObservableObject {
         } catch { notice = error.localizedDescription }
     }
     func upload(_ id: UUID) async {
-        guard !busy.contains(id), let saved = drive(id), saved.state != .recording else { return }
+        guard !busy.contains(id), !deletingDrives.contains(id), let saved = drive(id),
+              saved.state != .recording, saved.remoteDeletionConfirmed != true else { return }
         busy.insert(id)
         defer { busy.remove(id) }
         do {
@@ -280,7 +321,7 @@ final class AppState: ObservableObject {
         }
     }
     func refresh(_ id: UUID) async {
-        guard let drive = drive(id) else { return }
+        guard let drive = drive(id), !deletingDrives.contains(id), drive.remoteDeletionConfirmed != true else { return }
         do {
             if drive.isDemo {
                 guard let queuedAt = drive.queuedAt else { return }
@@ -288,7 +329,9 @@ final class AppState: ObservableObject {
                     try await repository.update(id) { $0.state = .processing }
                 } else { try await persist(DemoFixtures.snapshot(for: drive), id: id) }
             } else if let serverID = drive.serverID {
-                try await persist(client(for: drive).drive(driveID: serverID), id: id)
+                let snapshot = try await client(for: drive).drive(driveID: serverID)
+                guard !deletingDrives.contains(id) else { return }
+                try await persist(snapshot, id: id)
             }
             await reload()
         } catch {
@@ -298,9 +341,12 @@ final class AppState: ObservableObject {
         }
     }
     func retry(_ id: UUID) async {
-        guard let drive = drive(id) else { return }
+        guard let drive = drive(id), !deletingDrives.contains(id), drive.remoteDeletionConfirmed != true else { return }
         do {
             if drive.snapshot?.status == "failed", !drive.isDemo, let serverID = drive.serverID {
+                guard !busy.contains(id) else { return }
+                busy.insert(id)
+                defer { busy.remove(id) }
                 _ = try await client(for: drive).retryAnalysis(driveID: serverID)
                 try await repository.update(id) { $0.state = .queued; $0.lastError = nil }
             } else { await upload(id) }

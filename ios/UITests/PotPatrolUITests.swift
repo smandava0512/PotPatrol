@@ -21,6 +21,26 @@ final class PotPatrolUITests: XCTestCase {
         }
         app.buttons["stopRecording"].tap()
     }
+    func testSavedDriveDeletionRequiresConfirmationAndDisappearsAfterSuccess() {
+        finishDemo("demoNoHazards")
+        XCTAssertTrue(app.staticTexts["0 hazards"].waitForExistence(timeout: 20))
+        let back = app.navigationBars.buttons.firstMatch
+        XCTAssertTrue(back.waitForExistence(timeout: 20))
+        back.tap()
+        let drive = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'drive_' ")).firstMatch
+        XCTAssertTrue(drive.waitForExistence(timeout: 10))
+        let delete = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'deleteDrive_' ")).firstMatch
+        reveal(delete)
+        delete.tap()
+        XCTAssertTrue(app.staticTexts["Deletes this drive’s video, GPS, evidence and drafts from this iPhone and, if uploaded, from the connected server. This cannot be undone."].exists)
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(drive.exists)
+        delete.tap()
+        app.buttons["Delete from iPhone and server"].tap()
+        let gone = NSPredicate { _, _ in !drive.exists }
+        expectation(for: gone, evaluatedWith: nil)
+        waitForExpectations(timeout: 10)
+    }
     private func reveal(_ element: XCUIElement) {
         for _ in 0..<5 where !element.isHittable { app.swipeUp() }
     }

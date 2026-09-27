@@ -26,6 +26,8 @@ public struct SavedDrive: Codable, Identifiable, Sendable {
     public var durationMilliseconds: Int64?
     public var serverID: UUID?
     public var serverBaseURL: String?
+    /// Set only after an authenticated 204. Nil in older metadata means unconfirmed.
+    public var remoteDeletionConfirmed: Bool?
     /// Nil for older saved drives: they cannot silently upload after an app upgrade.
     public var approvedUploadBaseURL: String?
     public var videoUploaded = false
@@ -84,9 +86,30 @@ public actor SavedDriveRepository {
     @discardableResult
     public func update(_ id: UUID, change: @Sendable (inout SavedDrive) -> Void) throws -> SavedDrive {
         var drive = try load(id)
+        guard drive.remoteDeletionConfirmed != true else {
+            throw PotPatrolAPIError.configuration("This drive was deleted from the server; finish removing its local files instead.")
+        }
         change(&drive)
         try save(drive)
         return drive
+    }
+    /// Refuse to remove a remote-backed folder without a durable 204 receipt.
+    /// All video, GPS, evidence and edited reports live inside this UUID folder.
+    public func deleteLocalDrive(_ id: UUID) throws {
+        let drive = try load(id)
+        guard drive.serverID == nil || drive.remoteDeletionConfirmed == true else {
+            throw PotPatrolAPIError.configuration("Server deletion has not been confirmed. Local files are retained.")
+        }
+        let folder = directory(id)
+        // Keep the checkpoint readable until every private artifact is gone, so a
+        // partial filesystem failure can be retried from Saved drives.
+        let metadata = folder.appendingPathComponent("drive.json")
+        for item in try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
+        where item.lastPathComponent != metadata.lastPathComponent {
+            try FileManager.default.removeItem(at: item)
+        }
+        try FileManager.default.removeItem(at: metadata)
+        try FileManager.default.removeItem(at: folder)
     }
     public func library() throws -> DriveLibrary {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

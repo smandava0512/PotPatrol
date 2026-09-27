@@ -163,6 +163,16 @@ public struct PotPatrolAPIClient {
     public func retryAnalysis(driveID: UUID) async throws -> DriveIdentity {
         try await decode(DriveIdentity.self, path: "v1/drives/\(driveID.uuidString)/retry", method: "POST", body: Data("{}".utf8))
     }
+    /// Deletion is confirmed only by the authenticated server's 204 response.
+    public func deleteDrive(driveID: UUID) async throws {
+        let request = try request("v1/drives/\(driveID.uuidString)", method: "DELETE")
+        let (data, response) = try await session.data(for: request, delegate: APIRedirectDelegate())
+        guard let response = response as? HTTPURLResponse else { throw PotPatrolAPIError.invalidResponse }
+        guard response.statusCode == 204 else {
+            let detail = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["detail"]
+            throw PotPatrolAPIError.http(response.statusCode, detail.map { String(describing: $0).prefix(500).description } ?? "Deletion was not confirmed")
+        }
+    }
     public func drive(driveID: UUID) async throws -> DriveSnapshot {
         try await decode(DriveSnapshot.self, path: "v1/drives/\(driveID.uuidString)")
     }

@@ -56,6 +56,68 @@ final class AppContractTests: XCTestCase {
         let accepted = try await client().sendLocations(driveID: UUID(), samples: [worse, sample])
         XCTAssertEqual(accepted, 1)
     }
+    func testDeleteDriveRequiresAuthenticatedExact204AndEmptyBody() async throws {
+        let id = UUID()
+        APIStub.handler = { request in
+            XCTAssertEqual(request.httpMethod, "DELETE")
+            XCTAssertEqual(request.url?.absoluteString, "https://api.example/v1/drives/\(id.uuidString)")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "X-Device-Token"), "test-token")
+            XCTAssertTrue(self.body(request).isEmpty)
+            return (204, Data())
+        }
+        try await client().deleteDrive(driveID: id)
+        for status in [200, 202, 401, 404, 503] {
+            APIStub.handler = { _ in (status, Data("{\"detail\":\"not confirmed\"}".utf8)) }
+            do { try await client().deleteDrive(driveID: id); XCTFail("Accepted \(status)") }
+            catch PotPatrolAPIError.http(let code, _) { XCTAssertEqual(code, status) }
+        }
+    }
+    func testDeleteRequiresConfirmedRemoteOrLocalOnlyAndRemovesEntireFolder() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repository = SavedDriveRepository(root: root)
+        var remote = SavedDrive()
+        remote.serverID = UUID()
+        try await repository.save(remote)
+        let folder = await repository.directory(remote.id)
+        try Data("video".utf8).write(to: await repository.videoURL(remote.id))
+        try Data("gps".utf8).write(to: await repository.locationsURL(remote.id))
+        try Data("evidence".utf8).write(to: folder.appendingPathComponent("evidence.jpg"))
+        do { try await repository.deleteLocalDrive(remote.id); XCTFail("Deleted unconfirmed remote") }
+        catch { XCTAssertTrue(FileManager.default.fileExists(atPath: folder.path)) }
+        try await repository.update(remote.id) { $0.remoteDeletionConfirmed = true }
+        let reopened = SavedDriveRepository(root: root)
+        let persisted = try await reopened.load(remote.id)
+        XCTAssertEqual(persisted.remoteDeletionConfirmed, true)
+        do { try await reopened.update(remote.id) { $0.state = .uploading }; XCTFail("Resumed a deleted drive") }
+        catch {
+            let stillThere = try await reopened.load(remote.id)
+            XCTAssertEqual(stillThere.remoteDeletionConfirmed, true)
+        }
+        try await reopened.deleteLocalDrive(remote.id)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: folder.path))
+        let local = SavedDrive()
+        try await repository.save(local)
+        try await repository.deleteLocalDrive(local.id)
+        let localFolder = await repository.directory(local.id)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: localFolder.path))
+    }
+    func testLegacyRemoteDriveHasNoDeletionConfirmation() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repository = SavedDriveRepository(root: root)
+        var drive = SavedDrive()
+        drive.serverID = UUID()
+        var metadata = try JSONSerialization.jsonObject(with: PotPatrolJSON.encoder().encode(drive)) as! [String: Any]
+        metadata.removeValue(forKey: "remoteDeletionConfirmed")
+        let folder = await repository.directory(drive.id)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try JSONSerialization.data(withJSONObject: metadata).write(to: folder.appendingPathComponent("drive.json"))
+        let legacy = try await repository.load(drive.id)
+        XCTAssertNil(legacy.remoteDeletionConfirmed)
+        do { try await repository.deleteLocalDrive(drive.id); XCTFail("Deleted legacy remote") }
+        catch { XCTAssertTrue(FileManager.default.fileExists(atPath: folder.path)) }
+    }
     func testCompleteWithoutRecordedOriginKeepsEmptyBody() async throws {
         let id = UUID()
         APIStub.handler = { request in

@@ -7,6 +7,7 @@ struct HomeView: View {
     @EnvironmentObject private var state: AppState
     @State private var showSettings = false
     @State private var showScenarios = false
+    @State private var pendingDeletionID: UUID?
     var body: some View {
         NavigationStack(path: $state.path) {
             List {
@@ -47,13 +48,23 @@ struct HomeView: View {
                             .foregroundStyle(.secondary)
                     }
                     ForEach(state.drives) { drive in
-                        NavigationLink(value: AppRoute.drive(drive.id)) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(drive.createdAt.formatted(date: .abbreviated, time: .shortened)).font(.headline)
-                                Text(drive.usesFixtureAnalysis ? "Demo fixture · \(drive.state.rawValue.capitalized)" : drive.state.rawValue.capitalized)
-                                    .font(.subheadline).foregroundStyle(.secondary)
+                        HStack {
+                            NavigationLink(value: AppRoute.drive(drive.id)) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(drive.createdAt.formatted(date: .abbreviated, time: .shortened)).font(.headline)
+                                    Text(drive.remoteDeletionConfirmed == true ? "Server deletion confirmed · finish removing from iPhone" :
+                                         drive.usesFixtureAnalysis ? "Demo fixture · \(drive.state.rawValue.capitalized)" : drive.state.rawValue.capitalized)
+                                        .font(.subheadline).foregroundStyle(.secondary)
+                                }
+                            }.accessibilityIdentifier("drive_\(drive.id.uuidString)")
+                            Button { pendingDeletionID = drive.id } label: {
+                                Image(systemName: "trash").foregroundStyle(.red)
                             }
-                        }.accessibilityIdentifier("drive_\(drive.id.uuidString)")
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel("Delete saved drive")
+                            .accessibilityIdentifier("deleteDrive_\(drive.id.uuidString)")
+                            .disabled(!state.canDelete(drive))
+                        }
                     }
                 }
             }
@@ -75,6 +86,17 @@ struct HomeView: View {
             .alert("Pot Patrol", isPresented: Binding(get: { state.notice != nil }, set: { if !$0 { state.notice = nil } })) {
                 Button("OK") { state.notice = nil }
             } message: { Text(state.notice ?? "") }
+            .confirmationDialog("Delete saved drive?", isPresented: Binding(
+                get: { pendingDeletionID != nil }, set: { if !$0 { pendingDeletionID = nil } }
+            ), titleVisibility: .visible) {
+                Button("Delete from iPhone and server", role: .destructive) {
+                    if let id = pendingDeletionID { Task { await state.deleteDrive(id) } }
+                    pendingDeletionID = nil
+                }
+                Button("Cancel", role: .cancel) { pendingDeletionID = nil }
+            } message: {
+                Text("Deletes this drive’s video, GPS, evidence and drafts from this iPhone and, if uploaded, from the connected server. This cannot be undone.")
+            }
         }
     }
 }
