@@ -41,7 +41,7 @@ Keep the old shape working until both other developers acknowledge.
 
 ### Developer 1 acknowledgment — 2026-09-27
 
-Dev 1 acknowledges changes #1–#5 as consumer compatibility. iOS changes are on `codex/developer-1-pot-patrol-ios` at `f6e47f9`; macOS package tests pass and native/UI verification is running.
+Dev 1 acknowledges changes #1–#5 as consumer compatibility. iOS changes are on `codex/developer-1-pot-patrol-ios` at `f6e47f9`; [macOS CI 36293356119](https://github.com/smandava0512/PotPatrol/actions/runs/36293356119) passed 33 unit checks, the separate synthetic-worker HTTP integration, native Release compilation and all six simulator UI scenarios.
 
 - #1: consume backend hazard category/confidence/review state/evidence/first-frame offsets, keep missing locations visible, and label fixture analysis explicitly. Unknown additive manifest fields remain compatible.
 - #2: consume the canonical nested API destination with candidates/reason/sources. Candidate choice is explicit and local; it never proves ownership or changes the server status. Opening an agency page records Portal opened. Dev 2 owns flattening report fields, including existing persisted drafts; Refresh draft re-fetches the server package and keeps earlier receipts in history.
@@ -49,7 +49,7 @@ Dev 1 acknowledges changes #1–#5 as consumer compatibility. iOS changes are on
 - #4: acknowledge the published backend adapter signature and nullable location/time/evidence. The app does not call the worker directly or invent missing coordinates/timestamps.
 - #5: acknowledge optional validation/validator/ai_check as additive advisory metadata; unknown fields decode without breaking the app. iOS does not enable Gemini, approve sending footage externally, or present its opinion as user confirmation. Dev 2's data-sharing approval and persistence/adapter work remain pending.
 
-Real-model app acceptance is still pending: public api.potpatrol.miami health is OK, but a valid UUID drive_id/private device credential and a Mac/iPhone run are required. No real detected pothole has been confirmed in the app yet. Full-video sharing is now opt-in; text and available evidence are shared by default.
+Authenticated acceptance on the supplied test UUID confirms a complete fixture drive with two potholes without GPS, HTTP 200 private evidence, and a report with plain category/description, explicit null latitude/longitude, `needs_review` and `not_submitted`. Real-model app acceptance is still pending: the iPhone is available, but the Mac needs Xcode/signing setup and a safely recorded real clip must produce a model result displayed in the app. No real detected pothole has been confirmed in the app yet. Full-video sharing is opt-in; text and available evidence are shared by default. New app uploads obtain and persist their UUID from `POST /v1/drives`.
 
 ### Developer 2 compatibility follow-up
 
