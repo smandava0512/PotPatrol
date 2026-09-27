@@ -1,0 +1,32 @@
+[project]
+name = "potpatrol-vision"
+version = "0.1.0"
+description = "PotPatrol pothole analysis worker and report drafting (schema v1)"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.26",
+  "av>=14",
+  "opencv-python-headless>=4.9",
+  "ultralytics>=8.3",
+  "huggingface_hub>=0.23",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+potpatrol-analyze = "potpatrol_vision.pipeline:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["potpatrol_vision*", "roadwatch_vision"]
+
+[tool.setuptools.package-data]
+potpatrol_vision = ["data/*.json", "fixtures/*.json", "fixtures/evidence/*.jpg"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

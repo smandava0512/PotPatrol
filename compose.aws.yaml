@@ -1,0 +1,60 @@
+# Isolated PotPatrol AWS demo. No host port exposes the API or worker directly.
+name: potpatrol-aws
+x-app: &app
+  build:
+    context: .
+    dockerfile: Dockerfile.aws
+  image: potpatrol-aws:local
+  env_file:
+    - .env
+    - path: db.env
+      format: raw
+  environment:
+    POTPATROL_STORAGE_DIR: /data/media
+    POTPATROL_ANALYZER: potpatrol.integration:analyze
+    POTPATROL_REPORTER: potpatrol.integration:draft_report
+  volumes:
+    - potpatrol_data:/data
+  restart: unless-stopped
+  networks:
+    - internal
+
+services:
+  api:
+    <<: *app
+    command: ["uvicorn", "potpatrol.api:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    <<: *app
+    command: ["python", "-m", "potpatrol.worker", "--loop"]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile.aws:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - internal
+
+networks:
+  internal:
+
+volumes:
+  potpatrol_data:
+  caddy_data:
+  caddy_config:

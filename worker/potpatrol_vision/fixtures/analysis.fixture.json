@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "mode": "fixture",
+  "video": {
+    "duration_ms": 45000,
+    "frames_decoded": 1350,
+    "frames_sampled": 180,
+    "sample_fps": 4.0,
+    "rotation_deg": 0,
+    "width": 1920,
+    "height": 1080
+  },
+  "model": {
+    "name": "fixture",
+    "weights_sha256": null,
+    "classes": ["pothole"],
+    "conf_threshold": 0.35
+  },
+  "processing_ms": 0,
+  "events": [
+    {
+      "event_id": "event-001",
+      "video_offset_ms": 12250,
+      "first_seen_ms": 11750,
+      "last_seen_ms": 12750,
+      "category": "pothole",
+      "confidence": 0.82,
+      "status": "confirmed",
+      "hits": 5,
+      "bbox": [0.46, 0.62, 0.63, 0.74],
+      "evidence_path": "evidence/event-001.jpg",
+      "evidence_raw_path": "evidence/event-001-raw.jpg",
+      "notes": "FIXTURE: Detected in 5 sampled frames over 1.0 s; box in lower-center of frame"
+    },
+    {
+      "event_id": "event-002",
+      "video_offset_ms": 36700,
+      "first_seen_ms": 36700,
+      "last_seen_ms": 36700,
+      "category": "pothole",
+      "confidence": 0.64,
+      "status": "needs_review",
+      "hits": 1,
+      "bbox": [0.62, 0.66, 0.78, 0.8],
+      "evidence_path": "evidence/event-002.jpg",
+      "evidence_raw_path": "evidence/event-002-raw.jpg",
+      "notes": "FIXTURE: Detected in 1 sampled frame; box in lower-right of frame"
+    }
+  ]
+}

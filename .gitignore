@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+*.egg-info/
+*.db
+*.sqlite
+*.sqlite3
+.potpatrol-storage/
+.roadwatch-storage/
+.env
+.env.*
+db.env
+!.env.example
+*.pem
+*.key
+*.p8
