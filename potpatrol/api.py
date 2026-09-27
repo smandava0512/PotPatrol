@@ -312,12 +312,23 @@ def create_app(db_url=None, storage_dir=None, token=None, analyzer=None, store=N
     def get_evidence(hazard_id: uuid.UUID, owner: Owner):
         with config.Session() as db:
             hazard = owned(db, Hazard, hazard_id, owner)
+            drive = db.get(Drive, hazard.drive_id)
+            if drive is None or drive.status == "deleting":
+                raise HTTPException(404, "No evidence")
             evidence = db.scalar(select(Evidence).where(Evidence.hazard_id == hazard.id))
             if not evidence:
                 raise HTTPException(404, "No evidence")
             if not config.store.exists(evidence.storage_key):
                 raise HTTPException(404, "No evidence")
-            return BytesResponse(config.store.read_bytes(evidence.storage_key), media_type="image/jpeg")
+            try:
+                image = config.store.read_bytes(evidence.storage_key)
+            except FileNotFoundError:
+                raise HTTPException(404, "No evidence") from None
+            except Exception as exc:
+                if getattr(exc, "response", {}).get("Error", {}).get("Code") not in ("404", "NoSuchKey", "NotFound"):
+                    raise
+                raise HTTPException(404, "No evidence") from exc
+            return BytesResponse(image, media_type="image/jpeg")
 
     @app.post("/v1/hazards/{hazard_id}/report-draft")
     def report_draft(hazard_id: uuid.UUID, owner: Owner):

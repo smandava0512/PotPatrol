@@ -169,3 +169,18 @@ def test_s3_deletes_all_versions_including_delete_markers():
     remote = Versioned()
     S3Store('bucket', 'scope', remote).delete_prefix('videos/abc')
     assert remote.objects == [('scope/videos/abcd/keep.mp4', 'v3')]
+
+
+def test_evidence_read_racing_deletion_returns_not_found(tmp_path):
+    class RemovedAfterCheck(LocalStore):
+        def read_bytes(self, key):
+            raise FileNotFoundError(key)
+
+    app, client = app_client(tmp_path, RemovedAfterCheck(tmp_path / 'media'))
+    drive = client.post('/v1/drives', headers=ONE).json()['drive_id']
+    url = client.post(f'/v1/drives/{drive}/upload-init', headers=ONE).json()['upload_url']
+    assert client.put(url, headers={**ONE, 'Content-Type': 'video/mp4'}, content=VIDEO).status_code == 204
+    assert client.post(f'/v1/drives/{drive}/complete', headers=ONE, json={}).status_code == 200
+    assert process_once(app.state.config) is True
+    hazard = client.get(f'/v1/drives/{drive}', headers=ONE).json()['hazards'][0]['hazard_id']
+    assert client.get(f'/v1/hazards/{hazard}/evidence', headers=ONE).status_code == 404
