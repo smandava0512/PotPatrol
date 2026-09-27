@@ -402,6 +402,62 @@
             }
           }
         }
+      },
+      "delete": {
+        "summary": "Delete Drive",
+        "operationId": "delete_drive_v1_drives__drive_id__delete",
+        "parameters": [
+          {
+            "name": "drive_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Drive Id"
+            }
+          },
+          {
+            "name": "x-device-token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Device-Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Invalid device token"
+          },
+          "404": {
+            "description": "Drive missing or not owned by this device"
+          },
+          "503": {
+            "description": "Storage cleanup failed; retry deletion"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/hazards/{hazard_id}/evidence": {

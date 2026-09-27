@@ -11,7 +11,7 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.responses import Response as BytesResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 
 from .db import Drive, Evidence, Hazard, Job, Location, ReportDraft, session_factory
 from .storage import LocalStore, S3Store
@@ -259,6 +259,34 @@ def create_app(db_url=None, storage_dir=None, token=None, analyzer=None, store=N
                  "evidence_url": f"/v1/hazards/{h.id}/evidence", "video_offset_ms": h.video_offset_ms,
                  "observed_at": h.observed_at, "location": h.location, "review_state": h.review_state}
                 for h in hazards]}
+
+    @app.delete("/v1/drives/{drive_id}", status_code=204, responses={
+        401: {"description": "Invalid device token"},
+        404: {"description": "Drive missing or not owned by this device"},
+        503: {"description": "Storage cleanup failed; retry deletion"},
+    })
+    def delete_drive(drive_id: uuid.UUID, owner: Owner):
+        with config.Session.begin() as db:
+            # Take the write lock before inspecting or removing anything. Worker
+            # publication and uploads also write under a transaction.
+            locked = db.execute(update(Drive).where(
+                Drive.id == str(drive_id), Drive.owner == owner,
+            ).values(status="deleting"))
+            if locked.rowcount != 1:
+                raise HTTPException(404, "Not found")
+            try:
+                for prefix in (f"videos/{drive_id}", f"evidence/{drive_id}"):
+                    config.store.delete_prefix(prefix)
+            except Exception as exc:
+                raise HTTPException(503, "Storage cleanup failed; retry deletion") from exc
+            hazard_ids = select(Hazard.id).where(Hazard.drive_id == str(drive_id))
+            db.execute(delete(ReportDraft).where(ReportDraft.hazard_id.in_(hazard_ids)))
+            db.execute(delete(Evidence).where(Evidence.hazard_id.in_(hazard_ids)))
+            db.execute(delete(Hazard).where(Hazard.drive_id == str(drive_id)))
+            db.execute(delete(Location).where(Location.drive_id == str(drive_id)))
+            db.execute(delete(Job).where(Job.drive_id == str(drive_id)))
+            db.execute(delete(Drive).where(Drive.id == str(drive_id), Drive.owner == owner))
+        return Response(status_code=204)
 
     @app.get("/v1/hazards/{hazard_id}/evidence")
     def get_evidence(hazard_id: uuid.UUID, owner: Owner):

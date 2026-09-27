@@ -123,8 +123,6 @@ def process_once(config):
                 raise ValueError("Worker must return output_dir/analysis.json")
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             events = validate_manifest(manifest, workspace)
-            evidence_dir = config.storage_dir / "evidence" / drive_id
-            evidence_dir.mkdir(parents=True, exist_ok=True)
             with config.Session.begin() as db:
                 final_now = datetime.now(timezone.utc)
                 held = db.execute(update(Job).where(

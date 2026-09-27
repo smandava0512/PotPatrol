@@ -37,6 +37,14 @@ class LocalStore:
     def read_bytes(self, key):
         return self.path(key).read_bytes()
 
+    def delete_prefix(self, prefix):
+        import shutil
+        directory = self.path(prefix)
+        if directory.is_dir():
+            shutil.rmtree(directory)
+        if directory.exists():
+            raise OSError("Storage prefix still exists")
+
 
 class S3Store:
     def __init__(self, bucket, prefix="", client=None):
@@ -69,3 +77,24 @@ class S3Store:
 
     def read_bytes(self, key):
         return self.client.get_object(Bucket=self.bucket, Key=self.key(key))["Body"].read()
+
+    def delete_prefix(self, prefix):
+        # The trailing slash is essential: a drive UUID must not match a sibling.
+        remote_prefix = self.key(prefix.rstrip("/") + "/")
+        previous = None
+        while True:
+            page = self.client.list_objects_v2(Bucket=self.bucket, Prefix=remote_prefix)
+            keys = [item["Key"] for item in page.get("Contents", [])]
+            if not keys:
+                if page.get("IsTruncated"):
+                    raise OSError("Incomplete storage listing")
+                return
+            if keys == previous:
+                raise OSError("Storage deletion made no progress")
+            previous = keys
+            for start in range(0, len(keys), 1000):
+                result = self.client.delete_objects(Bucket=self.bucket, Delete={"Objects": [
+                    {"Key": key} for key in keys[start:start + 1000]], "Quiet": True})
+                if result.get("Errors"):
+                    raise OSError("Storage deletion failed")
+            # Re-list from the start, including pages beyond the first one.
