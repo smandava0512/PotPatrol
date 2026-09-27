@@ -21,7 +21,14 @@ struct DriveStatusView: View {
                     if drive.interrupted { Text("This recording was interrupted. Review the clip before retrying.").foregroundStyle(.orange) }
                     if videoURL != nil { Button("Review saved video") { showVideo = true } }
                 }
-                if drive.state == .complete {
+                if drive.remoteDeletionConfirmed == true {
+                    Section("Server deletion confirmed") {
+                        Text("This drive was deleted from the server. Finish removing its remaining video, GPS and evidence from this iPhone.")
+                        Button("Finish removing from iPhone", role: .destructive) {
+                            Task { await state.deleteDrive(id) }
+                        }
+                    }
+                } else if drive.state == .complete {
                     Section("Road hazards") {
                         let hazards = drive.snapshot?.hazards ?? []
                         if hazards.isEmpty { ContentUnavailableView("0 hazards", systemImage: "checkmark.shield", description: Text("The server reported no meaningful road hazards in this drive.")) }
@@ -67,7 +74,7 @@ struct DriveStatusView: View {
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                 }
-                if let error = drive.lastError, drive.state != .failed {
+                if let error = drive.lastError, drive.state != .failed, drive.remoteDeletionConfirmed != true {
                     Section("Needs attention") {
                         Text(error).foregroundStyle(.orange)
                         Button("Retry connection or upload") { Task { await state.retry(id) } }

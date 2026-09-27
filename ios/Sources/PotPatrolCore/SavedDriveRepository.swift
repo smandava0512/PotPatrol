@@ -48,10 +48,10 @@ public struct SavedDrive: Codable, Identifiable, Sendable {
     public var isDemo: Bool { demoScenario != nil }
     public var usesFixtureAnalysis: Bool { isDemo || snapshot?.analysisMode == "fixture" }
     public func mayUpload(to baseURL: URL) -> Bool {
-        !isDemo && approvedUploadBaseURL == baseURL.absoluteString
+        !isDemo && remoteDeletionConfirmed != true && approvedUploadBaseURL == baseURL.absoluteString
     }
     public var canReviewForUpload: Bool {
-        guard !isDemo else { return false }
+        guard !isDemo, remoteDeletionConfirmed != true else { return false }
         switch state {
         case .saved, .uploading: return true
         case .failed: return serverID != nil && snapshot?.status != "failed"
