@@ -91,6 +91,10 @@ It is enabled with `POTPATROL_VALIDATOR=gemini` + `GEMINI_API_KEY`. Any provider
 
 Bounds: at most **25** events per clip (highest scores kept). Events are sorted by `video_offset_ms`.
 
+### Explicit `gemini_required` vision mode (staged; not deployed)
+
+`POTPATROL_VISION_MODE=gemini_required` requires `POTPATROL_ANALYSIS_MODE=model` and a private `GEMINI_API_KEY`. It rejects fixture runs, missing SDK/key, incomplete API responses and >12 YOLO event candidates rather than returning success. It sends at most 24 PTS-selected frame JPEGs throughout each clip and at most 12 raw YOLO evidence JPEGs to Gemini (no video or metadata). It validates every retained YOLO event, drops Gemini-rejected candidates, and scans even zero-YOLO clips for missed damage. Results from Gemini alone have category `pothole` or `road_damage`, `source=gemini_scan`, confidence from that image response, a boxed frame JPEG and `status=needs_review`; validated YOLO results have `source=yolo_gemini_validated` and `status=needs_review`. `road_damage` is additive to the v1 category enum; consumers should handle category as text. The report draft for that category says "Possible road damage". Top-level additive `vision_mode=gemini_required` and `gemini_frames_scanned` record the path used, while existing `model` and `validator` name both actual systems. This does not claim measured accuracy or human confirmation.
+
 ### Time origin
 
 All `*_ms` values are **milliseconds from the first decoded video frame's presentation timestamp (PTS)**:

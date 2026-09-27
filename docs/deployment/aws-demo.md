@@ -21,7 +21,7 @@ The EC2 instance, disk and public IPv4 address can incur charges while running.
   do not use that stale source directory to rebuild the app. Compose project/volumes
   are still `potpatrol-aws`; no database or media was replaced.
 - On that host, create `.env` (mode `0600`) with an **explicit**
-  `POTPATROL_ANALYSIS_MODE=fixture` for the synthetic transport demo. Use
+  `POTPATROL_ANALYSIS_MODE=fixture` for the currently running synthetic transport demo. **Do not apply this staged Compose template to the live host yet**: it overrides mode to `model` with `gemini_required` and requires `GEMINI_API_KEY` in the private `.env` (Compose `${GEMINI_API_KEY:?…}` refuses missing key; worker also rejects missing SDK/key before claiming jobs). Deploy only after review of real positive/negative clips, API cost and image-sharing scope. The selected frame JPEGs (up to 24) and candidate evidence JPEGs (up to 12) leave the host for Google; the video and GPS do not. Use
   `POTPATROL_DEVICE_TOKENS` with one distinct, random credential per participating
   device, delivered privately. The legacy `POTPATROL_DEVICE_TOKEN` may be used
   only for a genuinely single-device demo; remove it when assigning separate
@@ -59,7 +59,8 @@ unreferenced objects. Budget for cleanup and backup before long-term use.
 Release `03fe24f` passed public trusted-HTTPS upload → GPS → completion → fixture
 worker → authenticated JPEG → scalar report draft checks. Re-fetch repairs the
 old wrapped server draft without changing its report ID; phone caches need the
-app's Refresh draft action. Gemini is explicitly off in the AWS Compose environment.
+app's Refresh draft action. Gemini remains off **in the live release**. The staged
+Compose file in this branch requires Gemini, and has not been deployed.
 
 Existing test drive: `f1dda379-bf7c-47b1-a238-437ebcd74f61`.
 New no-GPS fixture: `921da0f1-6bd3-4cd7-aef9-1e2dc599d7a1`.

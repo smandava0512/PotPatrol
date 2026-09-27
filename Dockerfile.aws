@@ -11,6 +11,6 @@ COPY potpatrol ./potpatrol
 COPY migrations ./migrations
 COPY worker ./worker
 RUN python -m pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu \
-    && python -m pip install --no-cache-dir . ./worker \
+    && python -m pip install --no-cache-dir . './worker[gemini]' \
     && mkdir -p /data/media /data/model-cache && chown -R 10001:10001 /data
 USER 10001:10001

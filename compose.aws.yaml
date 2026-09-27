@@ -13,8 +13,10 @@ x-app: &app
     POTPATROL_STORAGE_DIR: /data/media
     POTPATROL_ANALYZER: potpatrol.integration:analyze
     POTPATROL_REPORTER: potpatrol.integration:draft_report
-    # Evidence sharing has not been approved; ignore accidental .env opt-ins.
-    POTPATROL_VALIDATOR: "off"
+    POTPATROL_ANALYSIS_MODE: model
+    POTPATROL_VISION_MODE: gemini_required
+    POTPATROL_VALIDATOR: gemini
+    GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in private .env before starting this stack}
   volumes:
     - potpatrol_data:/data
   restart: unless-stopped

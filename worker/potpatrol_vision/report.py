@@ -56,7 +56,8 @@ def draft_report(hazard: dict, evidence_path: str | None, lat: float | None, lon
         dest = _missing_location_destination()
 
     when = f" at {observed_at}" if observed_at else ""
-    what = "Pothole" if user_reviewed else "Possible pothole"
+    label = "road damage" if hazard["category"] == "road_damage" else "pothole"
+    what = label.capitalize() if user_reviewed else f"Possible {label}"
     review = ("Automatically detected and confirmed by the reporter from the attached photo."
               if user_reviewed else "Automatically detected; not yet confirmed by the reporter.")
     description = f"{what} visible in the attached photo taken from a vehicle-mounted phone camera{when}{where}. {review}"
@@ -64,7 +65,8 @@ def draft_report(hazard: dict, evidence_path: str | None, lat: float | None, lon
     return {
         "report_schema_version": REPORT_SCHEMA_VERSION,
         "event_id": hazard.get("event_id"),
-        "category": _f(hazard["category"], "user" if user_reviewed else "detector"),
+        "category": _f(hazard["category"], "user" if user_reviewed else
+                       "validator" if hazard.get("source") == "gemini_scan" else "detector"),
         "observation_time": _f(observed_at, "device_clock" if observed_at else "unassessed"),
         "location_description": location,
         "coordinates": _f({"lat": lat, "lon": lon, "accuracy_m": accuracy_m} if has_loc else None,

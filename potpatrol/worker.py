@@ -194,6 +194,13 @@ def process_once(config):
 
 
 def main():
+    import os
+
+    if os.environ.get("POTPATROL_VISION_MODE", "").lower() == "gemini_required":
+        if os.environ.get("POTPATROL_ANALYSIS_MODE", "").lower() == "fixture":
+            raise RuntimeError("Gemini required mode refuses fixture analysis")
+        from potpatrol_vision.validators import get_required_validator
+        get_required_validator()  # fail before claiming any jobs if key/SDK is missing
     from .api import Config
     parser = argparse.ArgumentParser()
     parser.add_argument("--once", action="store_true")

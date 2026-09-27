@@ -23,7 +23,7 @@ DEFAULT_TIMEOUT_S = 20.0
 
 _PROMPT = """You are checking one frame from a vehicle-mounted phone camera that an automatic detector flagged as a {category}.
 Decide only from what is visible in this image whether it shows a {category} in the road surface.
-Common false alarms: manhole or utility covers, patched or resurfaced asphalt, shadows, puddles, stains, painted markings, shallow cracks.
+Common false alarms: curbs, parking stops, sidewalk edges, manhole or utility covers, patched or resurfaced asphalt, shadows, puddles, stains, painted markings, shallow cracks.
 Return is_hazard, your confidence in [0,1], and a one-sentence rationale describing only visible features.
 Do not estimate size, depth, lane, road ownership, severity or injury risk."""
 
@@ -36,6 +36,12 @@ _RESPONSE_SCHEMA = {
     },
     "required": ["is_hazard", "confidence", "rationale"],
 }
+_SCAN_PROMPT = """Inspect only the visible road surface in this single vehicle-camera frame. Find visible potholes or broken/rough road surface requiring human review. Do not report curbs, parking stops, manhole covers, painted markings, shadows, intact patches or unrelated objects. Return hazards as normalized [x1,y1,x2,y2] boxes (0 to 1) tightly enclosing visible road damage, with confidence in [0,1] and category pothole or road_damage (use road_damage for rough/broken surface that is not clearly a pothole). Return an empty list when unsure or no road damage is visible. Do not infer location, time, severity, depth or size."""
+_SCAN_SCHEMA = {"type": "OBJECT", "properties": {"hazards": {"type": "ARRAY", "items": {
+    "type": "OBJECT", "properties": {"bbox": {"type": "ARRAY", "items": {"type": "NUMBER"}},
+                                      "confidence": {"type": "NUMBER"},
+                                      "category": {"type": "STRING", "enum": ["pothole", "road_damage"]}},
+    "required": ["bbox", "confidence", "category"]}}}, "required": ["hazards"]}
 
 
 class CandidateValidator(Protocol):
@@ -67,6 +73,24 @@ class GeminiValidator:
     def describe(self) -> dict:
         return {"provider": "gemini", "model": self.model}
 
+    def scan(self, image_path: str) -> list[dict] | None:
+        """An independent frame scan; None means failure, not a negative frame."""
+        try:
+            with open(image_path, "rb") as f:
+                image = f.read()
+            t = self._types
+            resp = self._client.models.generate_content(
+                model=self.model,
+                contents=[t.Part.from_bytes(data=image, mime_type="image/jpeg"), _SCAN_PROMPT],
+                config=t.GenerateContentConfig(temperature=0.0, response_mime_type="application/json",
+                                               response_schema=_SCAN_SCHEMA,
+                                               automatic_function_calling=t.AutomaticFunctionCallingConfig(disable=True)),
+            )
+            return json.loads(resp.text)["hazards"]
+        except Exception as e:  # noqa: BLE001 - required caller treats None as job failure
+            print(f"validator: Gemini frame scan failed ({type(e).__name__})", file=sys.stderr)
+            return None
+
     def validate(self, image_path: str, category: str) -> dict | None:
         try:
             with open(image_path, "rb") as f:
@@ -88,9 +112,23 @@ class GeminiValidator:
             return {"is_hazard": data["is_hazard"], "confidence": round(conf, 3),
                     "rationale": str(data["rationale"]).strip()[:300], **self.describe()}
         except Exception as e:  # noqa: BLE001 - optional layer: any failure falls back to the deterministic path
-            print(f"validator: gemini check of {os.path.basename(image_path)} failed: {type(e).__name__}: {e}",
+            print(f"validator: gemini check of {os.path.basename(image_path)} failed: {type(e).__name__}",
                   file=sys.stderr)
             return None
+
+
+def get_required_validator() -> GeminiValidator:
+    """Required mode never silently falls back or searches for a dotenv file."""
+    from .schema import AnalysisError
+
+    key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    if not key:
+        raise AnalysisError("Gemini required: GEMINI_API_KEY is not configured")
+    try:
+        return GeminiValidator(key, model=env("GEMINI_MODEL", DEFAULT_GEMINI_MODEL),
+                               timeout_s=float(env("VALIDATE_TIMEOUT_S", str(DEFAULT_TIMEOUT_S))))
+    except Exception as e:
+        raise AnalysisError(f"Gemini required: SDK initialization failed ({type(e).__name__})") from e
 
 
 def load_dotenv() -> None:

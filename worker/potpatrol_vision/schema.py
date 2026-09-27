@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 
 SCHEMA_VERSION = 1
-CATEGORIES = ("pothole",)
+CATEGORIES = ("pothole", "road_damage")
 STATUSES = ("confirmed", "needs_review")
 MODES = ("model", "fixture")
 MAX_EVENTS = 25

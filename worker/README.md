@@ -55,6 +55,12 @@ Tuning flags: `--sample-fps` (default 4), `--conf` (default 0.35), `--device cpu
 3. `python worker/eval/evaluate.py worker/eval/labels.csv --conf 0.25 0.35 0.5`
 4. Open `worker/eval/out/conf*/<clip>/evidence/*.jpg` and check every event against the labels.
 
+## Required Gemini-assisted real analysis (explicit opt-in)
+
+With authorization for **selected JPEG frames only**, install `worker[gemini]`, set `GEMINI_API_KEY` in a private runtime environment, `POTPATROL_ANALYSIS_MODE=model` and `POTPATROL_VISION_MODE=gemini_required`. No full MP4, GPS, UTC timestamp, or other metadata is sent to Google; only up to 24 resized selected road-frame JPEGs (one request each), plus up to 12 YOLO candidate evidence JPEGs. Selection progressively thins 4-fps PTS-sampled frames across the clip in one pass; long clips are therefore sampled sparsely and individual hazards between samples can still be missed. Gemini checks every retained YOLO candidate (negative responses remove it) and independently scans selected frames even when YOLO found none. Scan-only findings get a frame-backed box, `source=gemini_scan`, the Gemini score and `needs_review`; YOLO positives also remain `needs_review` until a human checks. `road_damage` denotes rough/broken road surface that is not clearly a pothole. Zero events is success only after all selected scans completed.
+
+Fixture selection, missing key/SDK, malformed or failed provider response, or >12 YOLO candidates fail the job with no `analysis.json`; there is **no** YOLO-only fallback. The manifest keeps `mode=model`, adds `vision_mode=gemini_required`, `gemini_frames_scanned`, `model` (actual YOLO description), and `validator` (actual Gemini model). This is not a measured accuracy guarantee. Original positive and clean clips have not been retested with Gemini; costs and Google data retention require review before deploying. The AWS Compose template is staged for this mode and refuses to render without a private key, but this commit does not deploy or upload media.
+
 ## Optional Gemini check
 
 Off by default. It sends at most `POTPATROL_VALIDATE_MAX` (default 5) raw evidence JPEGs per clip to Google, so get Dev 2's OK first.
