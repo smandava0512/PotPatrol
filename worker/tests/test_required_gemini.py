@@ -115,6 +115,58 @@ def test_rejected_yolo_curb_is_not_resurrected_by_later_scan(clip):
     assert m["events"] == []
 
 
+def test_scan_keeps_adjacent_pothole_next_to_rejected_yolo_curb(clip):
+    video, out = clip
+    gemini = Gemini(negative=True, hazards=[{"category": "pothole", "bbox": [0.59, 0.7, 0.74, 0.85],
+                                             "confidence": 0.9}])
+    m = analyze(video, out, detector=Detector(alarm=True), validator=gemini)
+    validate_manifest(m, out)
+    assert len(m["events"]) == 1
+    assert m["events"][0]["bbox"] == [0.59, 0.7, 0.74, 0.85]
+    assert m["events"][0]["source"] == "gemini_scan"
+    assert len(gemini.checks) == 1
+    assert len(gemini.scans) == m["gemini_frames_scanned"] <= 24
+
+
+def test_moving_camera_scan_associates_downward_same_hazard_across_sparse_frames(clip):
+    video, out = clip
+
+    class MovingGemini(Gemini):
+        def scan(self, path):
+            super().scan(path)
+            boxes = {2: [0.4, 0.46, 0.54, 0.59],
+                     3: [0.39, 0.57, 0.56, 0.74],
+                     4: [0.38, 0.69, 0.58, 0.88]}
+            return ([{"category": "pothole", "bbox": boxes[len(self.scans)], "confidence": 0.9}]
+                    if len(self.scans) in boxes else [])
+
+    gemini = MovingGemini()
+    m = analyze(video, out, detector=Detector(), validator=gemini)
+    validate_manifest(m, out)
+    assert len(m["events"]) == 1
+    assert m["events"][0]["source"] == "gemini_scan"
+    assert len(gemini.scans) == m["gemini_frames_scanned"] <= 24
+    assert not gemini.checks
+
+
+def test_scan_keeps_distinct_hazards_in_same_and_later_frames(clip):
+    video, out = clip
+
+    class DistinctGemini(Gemini):
+        def scan(self, path):
+            super().scan(path)
+            boxes = {2: [[0.4, 0.55, 0.54, 0.68], [0.4, 0.74, 0.54, 0.87]],
+                     3: [[0.4, 0.38, 0.54, 0.51]]}
+            return [{"category": "pothole", "bbox": box, "confidence": 0.9}
+                    for box in boxes.get(len(self.scans), [])]
+
+    gemini = DistinctGemini()
+    m = analyze(video, out, detector=Detector(), validator=gemini)
+    assert len(m["events"]) == 3
+    assert len({e["event_id"] for e in m["events"]}) == 3
+    assert len(gemini.scans) == m["gemini_frames_scanned"] <= 24
+
+
 def test_required_accepts_yolo_only_for_review(clip):
     video, out = clip
     m = analyze(video, out, detector=Detector(alarm=True), validator=Gemini())
@@ -180,6 +232,20 @@ def test_frame_selection_stays_bounded_and_covers_long_clip():
     assert len(offsets) <= 24
     assert offsets[0] == 0 and offsets[-1] >= 550000
     assert all(jpeg.startswith(b"\xff\xd8\xff") for _, jpeg in selector.frames)
+
+
+def test_frame_selection_uses_full_budget_on_48_second_clip():
+    from potpatrol_vision.required import FrameSelector
+    selector = FrameSelector()
+    frame = np.zeros((120, 160, 3), np.uint8)
+    for i in range(193):
+        selector.add(i * 250, frame)
+    offsets = [t for t, _ in selector.frames]
+    assert len(offsets) == 24
+    assert offsets == sorted(offsets)
+    assert offsets[0] == 0 and offsets[-1] == 48000
+    assert all(sum(start <= t < start + 12000 for t in offsets) >= 3
+               for start in (0, 12000, 24000, 36000))
 
 
 def test_gemini_sdk_receives_only_selected_jpeg_bytes_and_prompt(monkeypatch, tmp_path):
