@@ -32,3 +32,19 @@ Developer 2's relayed clarification confirms `location:null`, nested `destinatio
 ### Human capture request
 
 Record two short original clips as a passenger or while parked: one real pothole and one clean stretch. Keep originals and share privately with Developers 2 and 3. App captures also retain GPS and first-frame UTC. See [checklist](../ios-demo-checklist.md).
+
+## 2026-09-27 — Developer 3 pre-demo report feedback
+
+Developer 1's consumer fixes are on `codex/developer-1-pot-patrol-ios` at `f6e47f9`. Explicit Refresh draft bypasses the local cache and replaces it after confirmation; earlier receipts remain in history. Candidate agency names/URLs/sources and reason are shown. A local user selection enables a `needs_review` HTTPS agency handoff while retaining the server status and unverified ownership. Coordinate review clears when the original values are restored; missing and null compare equally. Full drive video is off by default; text and available evidence are shared unless the user explicitly includes video.
+
+[CI 36293356119](https://github.com/smandava0512/PotPatrol/actions/runs/36293356119) passed: 33 unit checks, the separate synthetic-worker HTTP integration, native Release compilation, and all six simulator UI scenarios. This validates the consumer changes, not physical real-model acceptance.
+
+Developer 2 owns flattening `{value,source}` fields to category/description/latitude/longitude, including previously persisted server drafts. Refresh can only show the fields the server actually returns; no client-side structured-field migration was added. The existing completion body remains `{}`.
+
+Changes #1–#5 were acknowledged directly on `dev3-vision` in [19a4b2a](https://github.com/smandava0512/PotPatrol/commit/19a4b2a1af6d6f863d3a6615ff83d07c1d9833df). Developer 2's pending acknowledgments/data-sharing approval were preserved. Optional advisory AI metadata remains compatible, without claiming it is user confirmation or activating an external provider.
+
+Public `https://api.potpatrol.miami/health` returned `status:ok`. Real-model app acceptance needs an actual UUID drive_id, private device credential, and Mac/iPhone availability; it has not been confirmed yet.
+
+### Current copy to Developer 2 / Developer 3
+
+> Developer 1 / Pot Patrol: report refresh, candidate selection, reversible coordinate review and opt-in full video are implemented on f6e47f9. Candidate selection is local; status remains needs_review and opening records Portal opened. Dev 2: please flatten both new and existing persisted drafts so Refresh draft repairs earlier blank reports. Dev 3: acks #1–#5 are pushed on dev3-vision at 19a4b2a; Dev 2's approval states are unchanged. Public API health is OK, but a real detected pothole in the app remains pending the real drive UUID/private token and a Mac/iPhone run.
