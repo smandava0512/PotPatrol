@@ -51,6 +51,14 @@ def test_two_potholes_side_by_side_are_two_events():
     assert len(m.finish()) == 2
 
 
+def test_simultaneous_potholes_in_same_band_stay_separate():
+    m = EventMerger()
+    # near pothole low in frame, far pothole higher up, same x band, both visible at the same time
+    for t in range(1000, 2250, 250):
+        m.add_frame(t, IMG, [D(0.8, (0.40, 0.80, 0.60, 0.95)), D(0.7, (0.42, 0.40, 0.58, 0.48))])
+    assert len(m.finish()) == 2
+
+
 def test_weak_single_frame_dropped_strong_single_frame_needs_review():
     m = EventMerger()
     m.add_frame(1000, IMG, [D(0.4, (0.4, 0.6, 0.5, 0.7))])
@@ -166,6 +174,15 @@ def test_pipeline_negative_clip_returns_empty_events(tmp_path):
     _write_vfr_video(p, [33] * 60)
     m = analyze(p, str(tmp_path / "out"), detector=FakeDetector([]))
     assert m["events"] == [] and m["mode"] == "model"
+
+
+def test_explicit_fixture_false_ignores_fixture_env(monkeypatch, tmp_path):
+    # eval/evaluate.py relies on this: scoring must use the real detector even if the env selects fixture mode
+    monkeypatch.setenv("POTPATROL_ANALYSIS_MODE", "fixture")
+    p = str(tmp_path / "clip.mp4")
+    _write_vfr_video(p, [33] * 60)
+    m = analyze(p, str(tmp_path / "out"), fixture=False, detector=FakeDetector([]))
+    assert m["mode"] == "model" and m["events"] == []
 
 
 class FakeValidator:

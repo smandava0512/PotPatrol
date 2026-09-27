@@ -128,11 +128,12 @@ class EventMerger:
         tracks = sorted(self.done + self.active, key=lambda t: t.first_ms)
         self.active, self.done = [], []
         # Second pass: fuse tracks that broke on a missed frame / box jump for the same obstacle.
+        # Only sequential tracks qualify: tracks seen at the same time are different potholes.
         merged: list[Track] = []
         for tr in tracks:
             prev = merged[-1] if merged else None
             if (prev and prev.category == tr.category
-                    and tr.first_ms - prev.last_ms <= self.p.dedupe_window_ms
+                    and 0 < tr.first_ms - prev.last_ms <= self.p.dedupe_window_ms
                     and min(prev.last_box[2], tr.last_box[2]) > max(prev.last_box[0], tr.last_box[0]) - 0.15):
                 prev.last_ms = max(prev.last_ms, tr.last_ms)
                 prev.hits += tr.hits
