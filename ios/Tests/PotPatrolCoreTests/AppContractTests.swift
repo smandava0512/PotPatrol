@@ -118,6 +118,18 @@ final class AppContractTests: XCTestCase {
         do { try await repository.deleteLocalDrive(drive.id); XCTFail("Deleted legacy remote") }
         catch { XCTAssertTrue(FileManager.default.fileExists(atPath: folder.path)) }
     }
+    func testConfirmedServerDeletionDisablesOldDriveActions() {
+        var drive = SavedDrive()
+        drive.serverID = UUID()
+        drive.state = .failed
+        let base = URL(string: "https://api.example")!
+        drive.approvedUploadBaseURL = base.absoluteString
+        XCTAssertTrue(drive.mayUpload(to: base))
+        XCTAssertTrue(drive.canReviewForUpload)
+        drive.remoteDeletionConfirmed = true
+        XCTAssertFalse(drive.mayUpload(to: base))
+        XCTAssertFalse(drive.canReviewForUpload)
+    }
     func testCompleteWithoutRecordedOriginKeepsEmptyBody() async throws {
         let id = UUID()
         APIStub.handler = { request in
