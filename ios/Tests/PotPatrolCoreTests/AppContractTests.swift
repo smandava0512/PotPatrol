@@ -88,6 +88,15 @@ final class AppContractTests: XCTestCase {
         legacy.removeValue(forKey: "approvedUploadBaseURL")
         let recovered = try decoder.decode(SavedDrive.self, from: JSONSerialization.data(withJSONObject: legacy))
         XCTAssertFalse(recovered.mayUpload(to: first))
+        XCTAssertTrue(recovered.canReviewForUpload)
+        var legacyUploading = recovered
+        legacyUploading.state = .uploading
+        XCTAssertTrue(legacyUploading.canReviewForUpload)
+        legacyUploading.state = .failed
+        legacyUploading.serverID = UUID()
+        XCTAssertTrue(legacyUploading.canReviewForUpload)
+        legacyUploading.serverID = nil
+        XCTAssertFalse(legacyUploading.canReviewForUpload)
     }
     func testPrivateUploadUsesForegroundSessionAndRejectsEveryRedirect() {
         let configuration = UploadSessionSafety.configuration()

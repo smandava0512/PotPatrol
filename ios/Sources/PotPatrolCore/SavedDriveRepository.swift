@@ -48,6 +48,14 @@ public struct SavedDrive: Codable, Identifiable, Sendable {
     public func mayUpload(to baseURL: URL) -> Bool {
         !isDemo && approvedUploadBaseURL == baseURL.absoluteString
     }
+    public var canReviewForUpload: Bool {
+        guard !isDemo else { return false }
+        switch state {
+        case .saved, .uploading: return true
+        case .failed: return serverID != nil && snapshot?.status != "failed"
+        default: return false
+        }
+    }
 }
 
 public struct DriveLibrary: Sendable {

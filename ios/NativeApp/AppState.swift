@@ -40,7 +40,12 @@ final class AppState: ObservableObject {
                 await self.stopRecording(reason: reason)
             }
         }
-        Task { await reload(); await recoverInterruptedCaptures(); await resumeSavedDrives() }
+        Task {
+            await videoUploader.cancelLegacyTransfers()
+            await reload()
+            await recoverInterruptedCaptures()
+            await resumeSavedDrives()
+        }
     }
     func reload() async {
         do {
@@ -199,7 +204,7 @@ final class AppState: ObservableObject {
         throw PotPatrolAPIError.invalidResponse
     }
     func approveUpload(_ id: UUID) async {
-        guard let saved = drive(id), saved.state == .saved, !saved.isDemo else { return }
+        guard let saved = drive(id), saved.canReviewForUpload, !busy.contains(id) else { return }
         do {
             let client = try client(for: saved)
             try await repository.update(id) { $0.approvedUploadBaseURL = client.connection.baseURL.absoluteString }

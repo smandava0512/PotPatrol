@@ -39,14 +39,25 @@ struct DriveStatusView: View {
                     Section("Processing failed") {
                         Text(drive.snapshot?.error ?? drive.lastError ?? "The drive could not be processed.")
                         Text("Your local files are retained.").foregroundStyle(.secondary)
-                        if drive.serverID != nil || drive.isDemo {
+                        if (drive.serverID != nil || drive.isDemo) &&
+                            !(drive.canReviewForUpload && drive.approvedUploadBaseURL == nil) {
                             Button("Retry") { Task { await state.retry(id) } }
+                        }
+                        if drive.canReviewForUpload && drive.approvedUploadBaseURL == nil {
+                            Text("This earlier transfer needs your approval to continue sending its saved video and GPS.")
+                            Button("Review and continue upload") { Task { await state.approveUpload(id) } }
                         }
                     }
                 } else if drive.state == .saved {
                     Section("Saved on this iPhone") {
                         Text("Review the saved video first. Sending transmits the MP4 and any GPS samples to the configured analysis server; until then, they stay on this iPhone.")
                         Button("Send video and GPS for analysis") { Task { await state.approveUpload(id) } }
+                            .accessibilityIdentifier("approveDriveUpload")
+                    }
+                } else if drive.state == .uploading && drive.approvedUploadBaseURL == nil && !drive.isDemo {
+                    Section("Review earlier transfer") {
+                        Text("An earlier version started this transfer. Review the retained recording before allowing any remaining video or GPS to be sent.")
+                        Button("Review and continue upload") { Task { await state.approveUpload(id) } }
                             .accessibilityIdentifier("approveDriveUpload")
                     }
                 } else {

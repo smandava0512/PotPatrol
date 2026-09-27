@@ -6,6 +6,7 @@ extension Notification.Name { static let videoTransferChanged = Notification.Nam
 /// File-backed uploads use a default session so redirects can be refused before the
 /// private video is sent elsewhere. Interrupted transfers retry from the retained file.
 final class BackgroundVideoUploader: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    private static let legacyIdentifier = "com.potpatrol.video-uploads"
     private let repository: SavedDriveRepository
     private let lock = NSLock()
     private var continuations: [UUID: CheckedContinuation<Void, Error>] = [:]
@@ -19,9 +20,20 @@ final class BackgroundVideoUploader: NSObject, URLSessionTaskDelegate, @unchecke
         super.init()
         _ = session
     }
+    /// Previous releases handed uploads to iOS without a review checkpoint. Reattach
+    /// on first launch after upgrade and cancel any remaining OS-owned transfers.
+    func cancelLegacyTransfers() async {
+        let configuration = URLSessionConfiguration.background(withIdentifier: Self.legacyIdentifier)
+        let legacy = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
+        let tasks = await withCheckedContinuation { continuation in
+            legacy.getAllTasks { continuation.resume(returning: $0) }
+        }
+        for task in tasks { task.cancel() }
+        legacy.invalidateAndCancel()
+    }
     func upload(fileURL: URL, localDriveID: UUID, request: URLRequest) async throws {
         if try await repository.load(localDriveID).videoUploaded { return }
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             lock.lock()
             guard continuations[localDriveID] == nil else {
                 lock.unlock()
@@ -40,6 +52,7 @@ final class BackgroundVideoUploader: NSObject, URLSessionTaskDelegate, @unchecke
         completionHandler(UploadSessionSafety.redirect(request))
     }
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        if session.configuration.identifier == Self.legacyIdentifier { return }
         guard let id = task.taskDescription.flatMap(UUID.init(uuidString:)) else { return }
         let status = (task.response as? HTTPURLResponse)?.statusCode
         let result: Result<Void, Error>
