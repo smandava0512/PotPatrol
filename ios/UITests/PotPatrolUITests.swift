@@ -28,7 +28,8 @@ final class PotPatrolUITests: XCTestCase {
         XCTAssertTrue(back.waitForExistence(timeout: 20))
         back.tap()
         let drive = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'drive_' ")).firstMatch
-        XCTAssertTrue(drive.waitForExistence(timeout: 10))
+        reveal(drive)
+        XCTAssertTrue(drive.waitForExistence(timeout: 10), app.debugDescription)
         let delete = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'deleteDrive_' ")).firstMatch
         reveal(delete)
         delete.tap()
