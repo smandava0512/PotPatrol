@@ -95,12 +95,16 @@ def test_postgres_worker_and_delete_are_serialized_without_republishing(postgres
     assert not (tmp_path / "media" / "videos" / drive).exists()
 
 
-def test_postgres_migration_adds_durable_receipts(postgres_url, monkeypatch):
+def test_postgres_migration_adds_durable_receipts_and_gemini_provenance(postgres_url, monkeypatch):
     monkeypatch.setenv("POTPATROL_DATABASE_URL", postgres_url)
     config = AlembicConfig(str(Path(__file__).parent.parent / "alembic.ini"))
     command.upgrade(config, "head")
     engine = create_engine(postgres_url)
     with engine.connect() as connection:
-        assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar() == "fc86b25c81a7"
+        assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar() == "ba902f73c819"
         assert [column["name"] for column in inspect(connection).get_columns("deletion_receipts")] == ["digest"]
+        assert {"vision_mode", "validator_model", "gemini_frames_scanned"}.issubset(
+            {column["name"] for column in inspect(connection).get_columns("drives")})
+        assert {"source", "validation"}.issubset(
+            {column["name"] for column in inspect(connection).get_columns("hazards")})
     engine.dispose()

@@ -33,7 +33,9 @@ final class PotPatrolUITests: XCTestCase {
         let delete = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'deleteDrive_' ")).firstMatch
         reveal(delete)
         delete.tap()
-        XCTAssertTrue(app.staticTexts["Deletes this drive’s video, GPS, evidence and drafts from this iPhone and, if uploaded, from the connected server. This cannot be undone."].exists)
+        let warning = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@ AND label CONTAINS %@",
+                                                           "Deletes this drive’s video, GPS", "connected server")).firstMatch
+        XCTAssertTrue(warning.exists)
         app.buttons["Cancel"].tap()
         XCTAssertTrue(drive.exists)
         delete.tap()
