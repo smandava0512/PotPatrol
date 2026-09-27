@@ -16,7 +16,7 @@ Tokens, real clips, and signing credentials do not belong in Git. Clips are igno
 
 ## First Mac step
 
-Clone this branch; open `ios/PotPatrol.xcodeproj`. Select **PotPatrol**, choose an iPhone Simulator, then Run. No new project or third-party generator is needed.
+Use the [first-time Mac setup guide](../docs/ios-first-mac-setup.md) for Xcode installation, Apple Account/signing and iPhone Developer Mode. Clone this branch; open `ios/PotPatrol.xcodeproj`. Select **PotPatrol**, choose an iPhone Simulator, then Run. No new project or third-party generator is needed.
 
 Tap **Sample drive → Stop and save**. The labeled fixture moves through upload/processing to a pothole. Open it, review evidence and the approximate map, then edit/save its report. Its unverified destination keeps the portal disabled. **More sample scenarios** covers no GPS, zero hazards, processing failure, unsupported destination and destination candidates. Drives and edits persist through relaunch.
 

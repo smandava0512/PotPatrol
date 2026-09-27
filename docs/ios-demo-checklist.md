@@ -18,7 +18,7 @@ Keep originals; conversion creates no correlated GPS/UTC. Do not commit real med
 
 ## First Mac step
 
-Open `ios/PotPatrol.xcodeproj`, select **PotPatrol** and an iPhone Simulator, then Run. Verify **Sample drive → Stop and save → Results → Pothole → Review report**. Then select the connected phone and your Apple team in Signing & Capabilities. Xcode must support its actual iOS.
+Follow the [first-time Mac setup](ios-first-mac-setup.md) to install compatible Xcode, configure your Apple team and enable Developer Mode. Open `ios/PotPatrol.xcodeproj`, select **PotPatrol** and an iPhone Simulator, then Run. Verify **Sample drive → Stop and save → Results → Pothole → Review report**, then install on the connected phone.
 
 ## Live acceptance
 
@@ -40,9 +40,11 @@ Sample scenarios and server results with `analysis_mode:"fixture"` are labeled *
 | Package / iPhone SDK compilation | Passed [macOS CI 36293356119](https://github.com/smandava0512/PotPatrol/actions/runs/36293356119); 33 unit checks passed (live integration skipped in the ordinary unit run) |
 | HTTP MP4 / GPS retries / private evidence / report / no GPS | Passed CI 36293356119 in the separate live HTTP test with synthetic worker |
 | Native Release / simulator UI | Passed CI 36293356119; all 6 UI scenarios passed |
-| Mac / Xcode / installed iOS | Pending; iPhone 17 Pro or Pro Max planned |
+| Mac / Xcode / installed iOS | iPhone available; Mac can be available but Xcode/signing are not configured; exact OS versions pending |
 | Real pothole / clean clip | Pending capture |
 | Physical UTC/GPS timing / live real analyzer | Pending Mac/phone/server |
 | Report refresh / candidates / coordinate restoration / opt-in video | Passed CI 36293356119, including refresh after relaunch, candidate handoff without confirmation, and video off by default |
 
-On 2026-09-27, public `https://api.potpatrol.miami/health` returned `status:ok`. Authenticated real-model acceptance still needs a valid UUID `drive_id` and private device credentials; physical app rendering remains unconfirmed.
+On 2026-09-27, public `https://api.potpatrol.miami/health` returned `status:ok`. The supplied test UUID and privately confirmed device credential returned HTTP 200: complete, `analysis_mode:"fixture"`, two potholes at 12.25 s and 36.7 s, both with null location and observed time. Private JPEG evidence and the report draft also returned HTTP 200. Category/description were plain strings; latitude/longitude were explicitly null; destination was `needs_review` with no candidates and submission was `not_submitted`.
+
+This confirms the deployed fixture/report contract, including the flattened draft fields. Real-model acceptance still needs a safely captured real clip and its model result displayed in the phone app. New app uploads obtain their own UUID from `POST /v1/drives`; the test UUID is not hardcoded.
